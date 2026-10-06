@@ -16,6 +16,7 @@ export interface WinchResultHeader {
         integrationStepSeconds: number;
         internalSteps: number;
         waterDensityKgM3: number;
+        waterDepthM?: number;
         membraneDynamics: boolean;
         solverMethod?: string;
         hydrodynamicDrag: boolean;
@@ -197,8 +198,7 @@ export function assertResultMatchesModel(
     const fixedNodeIds = [...result.header.fixedNodeIds].sort((a, b) => a - b);
     const fixedNodeSet = new Set(fixedNodeIds);
     if (fixedNodeSet.size !== fixedNodeIds.length ||
-        fixedNodeIds.some(id => !knownNodeIds.has(id)) ||
-        surfaceNodeIds.some(id => !fixedNodeSet.has(id))) {
-        throw new Error('The result fixed-node constraints are invalid or omit a surface node.');
+        fixedNodeIds.some(id => !knownNodeIds.has(id))) {
+        throw new Error('The result fixed-node constraints contain duplicates or unknown nodes.');
     }
 }

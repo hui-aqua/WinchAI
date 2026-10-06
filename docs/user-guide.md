@@ -39,24 +39,59 @@ Winch rope elements are coloured by their computed axial tension; the plot
 shows the two winch endpoint tensions and the instantaneous net vertical
 load. Neither model nor result is sent to a server.
 
-The solver integrates transient motion of rigid beam bodies and axial,
-lumped-mass rope elements. Beam gravity and buoyancy use the input's
-`materials.weightInAir` and `materials.weightInWater` line masses where
-available. Winch1 and winch2 unstretched rope paths are taken up at 1 m/min.
-Every node initially on Z=0 remains fixed in world coordinates; a rigid beam
-touching a fixed node is held fixed as a whole. Ropes attached to moving beam
-nodes follow their parent body.
+### Run MoorDyn
 
-This is not a quasi-static equilibrium or design solver. Membranes remain
-static and do not contribute force. Drag, added mass, waves, currents, and
-unsupported damping are omitted. Model pretension fields with ambiguous
-units/reference are reported and ignored, so ropes start stress-free at the
-input geometry. Transient oscillations may persist; fixed-node reactions,
-beam stress, and elastic deformation are not solved. Water density defaults
-to 1025 kg/m³ where the model lacks submerged line-mass data, and buoyancy
-for open I-beams is approximated using an outer envelope. The result's
-warnings and assumptions list these limitations. Do not use preview forces
-or motion for engineering design.
+The default `xpbd` path remains an experimental preview. The recommended
+experimental cable-dynamics path uses MoorDyn-C v2. Supply a real site water
+depth below Z=0; the solver deliberately has no guessed default:
+
+```sh
+SITE_DEPTH_M=REPLACE_WITH_SURVEYED_DEPTH
+python -m simulation.winch_solver \
+  --solver moordyn \
+  --water-depth-m "$SITE_DEPTH_M" \
+  --duration-seconds 1 \
+  --frame-interval-seconds 0.05 \
+  --output simulation_results/moordyn-test.aqwr
+```
+
+Replace the depth placeholder with surveyed/site data before running. Install
+the dependency with the same Python interpreter used for the command:
+`python -m pip install -r requirements.txt`.
+
+Other useful options are `--duration-minutes`, `--max-internal-steps`,
+`--step-seconds`, `--iterations`, `--water-density-kg-m3`, and
+`--no-membrane`. The take-up rate is fixed at 1 m/min for winch paths.
+`--solver xpbd` is still available for comparison but is not numerically
+converged on the target model.
+
+### Model assumptions and validation
+
+The target's 20 upper winch endpoints are fixed at Z=0 per the system boundary
+definition, fixing their connected Flytekrage/Klammer/Stuss beam assembly while
+the Bunnring remains moving. Winch2's lower endpoints connect to nearest
+Bunnring nodes as ideal frictionless point fairleads. MoorDyn models trusses as
+lumped-mass lines, beams as rigid bodies, and membranes as cable-edge/diagonal
+approximations. The `.amodel` has no roller radius, wrap surface, or friction
+properties, so the fairleads are not finite-radius roller contacts.
+
+The target has seven rigid beam groups, 37 truss components, and seven
+membrane components. Degree-two truss chains are condensed into multi-segment
+MoorDyn lines; their internal node positions and per-element tensions are
+mapped back to the original node IDs. Membranes are represented as tension-only
+edge and diagonal cable approximations, not membrane finite elements. Beam
+inertia is diagonalized, and generic drag coefficients are used where material
+coefficients are absent.
+
+One short target diagnostic with membranes disabled and a test-only 100 m depth
+returned finite coordinates after one 0.01 s step, but still reported MoorDyn
+catenary-initialization fallbacks and a peak cable tension near 4.13 MN. The
+100 m value was not supplied as site data. The full membrane-enabled target,
+long-duration equilibrium, timestep/mesh convergence, measured loads, and
+finite-radius roller mechanics are not validated. Treat both solver modes as
+experimental visualization only; do not use their outputs for engineering
+design. For the detailed solver scope and known limitations, see the README's
+Physics and current scope section.
 
 ## Components and statistics
 

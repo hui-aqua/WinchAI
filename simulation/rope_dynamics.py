@@ -102,6 +102,35 @@ def _cross(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 
 
 @njit(cache=True)
+def _mat3_vec(matrix: np.ndarray, vector: np.ndarray) -> np.ndarray:
+    result = np.zeros(3)
+    for row in range(3):
+        for column in range(3):
+            result[row] += matrix[row, column] * vector[column]
+    return result
+
+
+@njit(cache=True)
+def _rotate_inverse_inertia(rotation: np.ndarray, inverse_inertia: np.ndarray) -> np.ndarray:
+    result = np.zeros((3, 3))
+    for row in range(3):
+        for column in range(3):
+            for left in range(3):
+                for right in range(3):
+                    result[row, column] += rotation[row, left] * inverse_inertia[left, right] * rotation[column, right]
+    return result
+
+
+@njit(cache=True)
+def _quadratic_form(vector: np.ndarray, matrix: np.ndarray) -> float:
+    result = 0.0
+    for row in range(3):
+        for column in range(3):
+            result += vector[row] * matrix[row, column] * vector[column]
+    return result
+
+
+@njit(cache=True)
 def _dynamic_kernel(
     initial_positions: np.ndarray,
     fixed_nodes: np.ndarray,
@@ -211,8 +240,10 @@ def _dynamic_kernel(
                 node_force[second, 2] -= fz
 
                 fraction = _submerged_fraction(positions[first, 2], positions[second, 2])
-                effective_mass = edge_mass_air[edge] * (1.0 - fraction) + edge_mass_water[edge] * fraction
-                weight = effective_mass * length * 9.80665 * 0.5
+                weight = (
+                    edge_mass_air[edge] * edge_rest_length[edge]
+                    - (edge_mass_air[edge] - edge_mass_water[edge]) * length * fraction
+                ) * GRAVITY_M_S2 * 0.5
                 node_force[first, 2] -= weight
                 node_force[second, 2] -= weight
 
@@ -225,8 +256,15 @@ def _dynamic_kernel(
                     + (positions[second, 2] - positions[first, 2]) ** 2
                 )
                 fraction = _submerged_fraction(positions[first, 2], positions[second, 2])
-                effective_mass = beam_mass_air[edge] * (1.0 - fraction) + beam_mass_water[edge] * fraction
-                weight = effective_mass * length * 9.80665 * 0.5
+                initial_length = math.sqrt(
+                    (initial_positions[second, 0] - initial_positions[first, 0]) ** 2
+                    + (initial_positions[second, 1] - initial_positions[first, 1]) ** 2
+                    + (initial_positions[second, 2] - initial_positions[first, 2]) ** 2
+                )
+                weight = (
+                    beam_mass_air[edge] * initial_length
+                    - (beam_mass_air[edge] - beam_mass_water[edge]) * length * fraction
+                ) * GRAVITY_M_S2 * 0.5
                 node_force[first, 2] -= weight
                 node_force[second, 2] -= weight
 
@@ -353,11 +391,19 @@ def _xpbd_kernel(
     edge_takeup_rate: np.ndarray,
     edge_compliance: np.ndarray,
     edge_tension_only: np.ndarray,
+    edge_mass_air: np.ndarray,
+    edge_mass_water: np.ndarray,
     edge_winch_index: np.ndarray,
     mem_edge_start: np.ndarray,
     mem_edge_end: np.ndarray,
     mem_edge_rest_length: np.ndarray,
     mem_edge_compliance: np.ndarray,
+    mem_mass_air: np.ndarray,
+    mem_mass_water: np.ndarray,
+    beam_start: np.ndarray,
+    beam_end: np.ndarray,
+    beam_mass_air: np.ndarray,
+    beam_mass_water: np.ndarray,
     output_times: np.ndarray,
     step_seconds: float,
     iterations: int,
@@ -398,6 +444,46 @@ def _xpbd_kernel(
             inv_dt = 1.0 / dt
             inv_dt2 = 1.0 / dt2
 
+            particle_force = node_external_force.copy()
+            for e in range(rope_count):
+                first = edge_start[e]
+                second = edge_end[e]
+                dx = positions[second, 0] - positions[first, 0]
+                dy = positions[second, 1] - positions[first, 1]
+                dz = positions[second, 2] - positions[first, 2]
+                length = math.sqrt(dx * dx + dy * dy + dz * dz)
+                submerged = _submerged_fraction(positions[first, 2], positions[second, 2])
+                buoyancy = (edge_mass_air[e] - edge_mass_water[e]) * length * submerged * GRAVITY_M_S2 * 0.5
+                particle_force[first, 2] += buoyancy
+                particle_force[second, 2] += buoyancy
+
+            for e in range(mem_count):
+                first = mem_edge_start[e]
+                second = mem_edge_end[e]
+                dx = positions[second, 0] - positions[first, 0]
+                dy = positions[second, 1] - positions[first, 1]
+                dz = positions[second, 2] - positions[first, 2]
+                length = math.sqrt(dx * dx + dy * dy + dz * dz)
+                submerged = _submerged_fraction(positions[first, 2], positions[second, 2])
+                buoyancy = (mem_mass_air[e] - mem_mass_water[e]) * length * submerged * GRAVITY_M_S2 * 0.5
+                particle_force[first, 2] += buoyancy
+                particle_force[second, 2] += buoyancy
+
+            rigid_body_force = body_external_force.copy()
+            for e in range(beam_start.size):
+                first = beam_start[e]
+                second = beam_end[e]
+                body = node_body[first]
+                if body < 0:
+                    continue
+                dx = positions[second, 0] - positions[first, 0]
+                dy = positions[second, 1] - positions[first, 1]
+                dz = positions[second, 2] - positions[first, 2]
+                length = math.sqrt(dx * dx + dy * dy + dz * dz)
+                submerged = _submerged_fraction(positions[first, 2], positions[second, 2])
+                buoyancy = (beam_mass_air[e] - beam_mass_water[e]) * length * submerged * GRAVITY_M_S2
+                rigid_body_force[body, 2] += buoyancy
+
             # 1. External forces & initial position prediction
             pos_pred = positions.copy()
             for i in range(node_count):
@@ -406,9 +492,9 @@ def _xpbd_kernel(
                 w = node_inv_mass[i]
                 if w <= 0.0:
                     continue
-                velocities[i, 0] += dt * w * node_external_force[i, 0]
-                velocities[i, 1] += dt * w * node_external_force[i, 1]
-                velocities[i, 2] += dt * w * node_external_force[i, 2]
+                velocities[i, 0] += dt * w * particle_force[i, 0]
+                velocities[i, 1] += dt * w * particle_force[i, 1]
+                velocities[i, 2] += dt * w * particle_force[i, 2]
                 velocities[i, 0] *= (1.0 - drag_factor)
                 velocities[i, 1] *= (1.0 - drag_factor)
                 velocities[i, 2] *= (1.0 - drag_factor)
@@ -423,9 +509,9 @@ def _xpbd_kernel(
 
             for b in range(body_count):
                 w = body_inv_mass[b]
-                body_velocities[b, 0] += dt * w * body_external_force[b, 0]
-                body_velocities[b, 1] += dt * w * body_external_force[b, 1]
-                body_velocities[b, 2] += dt * w * body_external_force[b, 2]
+                body_velocities[b, 0] += dt * w * rigid_body_force[b, 0]
+                body_velocities[b, 1] += dt * w * rigid_body_force[b, 1]
+                body_velocities[b, 2] += dt * w * rigid_body_force[b, 2]
                 body_velocities[b, 0] *= (1.0 - drag_factor)
                 body_velocities[b, 1] *= (1.0 - drag_factor)
                 body_velocities[b, 2] *= (1.0 - drag_factor)
@@ -449,7 +535,7 @@ def _xpbd_kernel(
 
                 R = quat_to_matrix(body_quats_pred[b])
                 body_R_pred[b] = R
-                body_I_inv_world[b] = R @ body_inertia_inv[b] @ R.T
+                body_I_inv_world[b] = _rotate_inverse_inertia(R, body_inertia_inv[b])
 
             # Project body nodes to world space
             for i in range(node_count):
@@ -483,7 +569,7 @@ def _xpbd_kernel(
 
                     rest = max(1e-4, edge_rest_length[e] - edge_takeup_rate[e] * time_seconds)
                     C = dist - rest
-                    if edge_tension_only[e] and C <= 0.0 and rope_lambdas[e] <= 0.0:
+                    if edge_tension_only[e] and C <= 0.0 and rope_lambdas[e] >= -1e-12:
                         continue
 
                     alpha_tilde = edge_compliance[e] * inv_dt2
@@ -494,7 +580,7 @@ def _xpbd_kernel(
                         if b1 >= 0:
                             r1 = pos_pred[i1] - body_centers_pred[b1]
                             u1 = _cross(r1, n)
-                            w1 = body_inv_mass[b1] + float(u1 @ body_I_inv_world[b1] @ u1)
+                            w1 = body_inv_mass[b1] + _quadratic_form(u1, body_I_inv_world[b1])
                         else:
                             w1 = node_inv_mass[i1]
 
@@ -504,7 +590,7 @@ def _xpbd_kernel(
                         if b2 >= 0:
                             r2 = pos_pred[i2] - body_centers_pred[b2]
                             u2 = _cross(r2, -n)
-                            w2 = body_inv_mass[b2] + float(u2 @ body_I_inv_world[b2] @ u2)
+                            w2 = body_inv_mass[b2] + _quadratic_form(u2, body_I_inv_world[b2])
                         else:
                             w2 = node_inv_mass[i2]
 
@@ -514,7 +600,7 @@ def _xpbd_kernel(
 
                     d_lambda = (-C - alpha_tilde * rope_lambdas[e]) / w_sum
                     if edge_tension_only[e]:
-                        new_lambda = max(0.0, rope_lambdas[e] + d_lambda)
+                        new_lambda = min(0.0, rope_lambdas[e] + d_lambda)
                         d_lambda = new_lambda - rope_lambdas[e]
                         rope_lambdas[e] = new_lambda
                     else:
@@ -529,12 +615,12 @@ def _xpbd_kernel(
                         if b1 >= 0:
                             body_centers_pred[b1] -= body_inv_mass[b1] * p
                             r1 = pos_pred[i1] - body_centers_pred[b1]
-                            d_theta1 = body_I_inv_world[b1] @ _cross(r1, -p)
+                            d_theta1 = _mat3_vec(body_I_inv_world[b1], _cross(r1, -p))
                             q_step = np.array([d_theta1[0]*0.5, d_theta1[1]*0.5, d_theta1[2]*0.5, 0.0])
                             body_quats_pred[b1] = quat_normalize(body_quats_pred[b1] + quat_mult(q_step, body_quats_pred[b1]))
                             R = quat_to_matrix(body_quats_pred[b1])
                             body_R_pred[b1] = R
-                            body_I_inv_world[b1] = R @ body_inertia_inv[b1] @ R.T
+                            body_I_inv_world[b1] = _rotate_inverse_inertia(R, body_inertia_inv[b1])
                         else:
                             pos_pred[i1, 0] -= node_inv_mass[i1] * px
                             pos_pred[i1, 1] -= node_inv_mass[i1] * py
@@ -544,12 +630,12 @@ def _xpbd_kernel(
                         if b2 >= 0:
                             body_centers_pred[b2] += body_inv_mass[b2] * p
                             r2 = pos_pred[i2] - body_centers_pred[b2]
-                            d_theta2 = body_I_inv_world[b2] @ _cross(r2, p)
+                            d_theta2 = _mat3_vec(body_I_inv_world[b2], _cross(r2, p))
                             q_step = np.array([d_theta2[0]*0.5, d_theta2[1]*0.5, d_theta2[2]*0.5, 0.0])
                             body_quats_pred[b2] = quat_normalize(body_quats_pred[b2] + quat_mult(q_step, body_quats_pred[b2]))
                             R = quat_to_matrix(body_quats_pred[b2])
                             body_R_pred[b2] = R
-                            body_I_inv_world[b2] = R @ body_inertia_inv[b2] @ R.T
+                            body_I_inv_world[b2] = _rotate_inverse_inertia(R, body_inertia_inv[b2])
                         else:
                             pos_pred[i2, 0] += node_inv_mass[i2] * px
                             pos_pred[i2, 1] += node_inv_mass[i2] * py
@@ -584,7 +670,7 @@ def _xpbd_kernel(
                     nz = dz / dist
 
                     C = dist - mem_edge_rest_length[e]
-                    if C <= 0.0 and mem_lambdas[e] <= 0.0:
+                    if C <= 0.0 and mem_lambdas[e] >= -1e-12:
                         continue
 
                     alpha_tilde = mem_edge_compliance[e] * inv_dt2
@@ -597,7 +683,7 @@ def _xpbd_kernel(
                         continue
 
                     d_lambda = (-C - alpha_tilde * mem_lambdas[e]) / w_sum
-                    new_lambda = max(0.0, mem_lambdas[e] + d_lambda)
+                    new_lambda = min(0.0, mem_lambdas[e] + d_lambda)
                     d_lambda = new_lambda - mem_lambdas[e]
                     mem_lambdas[e] = new_lambda
 
@@ -682,7 +768,7 @@ def _xpbd_kernel(
                 length = math.sqrt(dx*dx + dy*dy + dz*dz)
                 rest = max(1e-8, edge_rest_length[e] - edge_takeup_rate[e] * time_seconds)
                 geom_tension = edge_stiffness[e] * (length - rest)
-                xpbd_tension = rope_lambdas[e] / (step_seconds * step_seconds)
+                xpbd_tension = -rope_lambdas[e] / (step_seconds * step_seconds)
                 tension = max(geom_tension, xpbd_tension)
                 if edge_tension_only[e] and tension < 0.0:
                     tension = 0.0
@@ -774,6 +860,7 @@ def simulate_model(
     iterations: int = 3,
     drag_coeff: float = 2.0,
     include_membrane: bool = True,
+    water_depth_m: float | None = None,
 ) -> dict[str, Any]:
     if not math.isfinite(duration_seconds) or duration_seconds <= 0:
         raise ValueError("Duration must be finite and greater than zero.")
@@ -781,6 +868,23 @@ def simulate_model(
         raise ValueError("Frame interval must be finite and greater than zero.")
     if max_internal_steps < 1:
         raise ValueError("Maximum internal steps must be greater than zero.")
+    if solver_method == "moordyn":
+        if water_depth_m is None:
+            raise ValueError("MoorDyn requires the site water depth; pass water_depth_m or --water-depth-m.")
+        from .moordyn_backend import simulate_moordyn_model
+
+        return simulate_moordyn_model(
+            model_path,
+            water_density,
+            water_depth_m,
+            duration_seconds,
+            frame_interval_seconds,
+            max_internal_steps,
+            step_seconds,
+            include_membrane,
+        )
+    if solver_method not in {"xpbd", "explicit"}:
+        raise ValueError(f"Unsupported solver method {solver_method!r}.")
 
     model_data = _read_model(model_path, water_density)
     root = ET.parse(model_path).getroot()
@@ -824,7 +928,6 @@ def simulate_model(
     body_masses: list[float] = []
     body_inertia: list[np.ndarray] = []
     body_inertia_inverse: list[np.ndarray] = []
-    body_submerged_weights: list[float] = []
     body_local_nodes = np.zeros((node_count, 3), dtype=np.float64)
     beam_component_body = np.full(len(beams), -1, dtype=np.int64)
 
@@ -839,7 +942,6 @@ def simulate_model(
         group_nodes = set().union(*(beam_body_nodes[index] for index in group))
         is_fixed = any(fixed[node] for node in group_nodes)
         total_mass = 0.0
-        total_submerged_weight = 0.0
         weighted_center = np.zeros(3)
         segment_data = []
         for beam_index in group:
@@ -855,7 +957,6 @@ def simulate_model(
                 segment_data.append((a, b, length, mass, mass_per_m, submerged_per_m, center, delta))
                 total_mass += mass
                 weighted_center += mass * center
-                total_submerged_weight += submerged_per_m * length * GRAVITY_M_S2
         if is_fixed:
             for node in group_nodes:
                 fixed[node] = True
@@ -885,7 +986,6 @@ def simulate_model(
         body_masses.append(total_mass)
         body_inertia.append(inertia)
         body_inertia_inverse.append(inverse_inertia)
-        body_submerged_weights.append(total_submerged_weight)
         for node in group_nodes:
             if body_membership[node] >= 0:
                 raise ValueError("A node belongs to multiple independent moving rigid bodies.")
@@ -985,14 +1085,14 @@ def simulate_model(
             )
 
     particle_mass = np.zeros(node_count, dtype=np.float64)
-    particle_submerged_force = np.zeros((node_count, 3), dtype=np.float64)
+    particle_air_force = np.zeros((node_count, 3), dtype=np.float64)
     for edge in line_edges:
         segment_mass = edge["massAir"] * edge["length"] * 0.5
         particle_mass[edge["start"]] += segment_mass
         particle_mass[edge["end"]] += segment_mass
-        sub_weight = edge["massWater"] * edge["length"] * 0.5 * GRAVITY_M_S2
-        particle_submerged_force[edge["start"], 2] -= sub_weight
-        particle_submerged_force[edge["end"], 2] -= sub_weight
+        air_weight = edge["massAir"] * edge["length"] * 0.5 * GRAVITY_M_S2
+        particle_air_force[edge["start"], 2] -= air_weight
+        particle_air_force[edge["end"], 2] -= air_weight
 
     # Extract membrane elements (nets)
     mem_edges_dict = {}
@@ -1032,14 +1132,16 @@ def simulate_model(
                                 "length": length,
                                 "compliance": length / (emodule * areal),
                                 "mass": twine_mass_per_m * length,
-                                "sub_weight": sub_mass_per_m * length * GRAVITY_M_S2,
+                                "massAirPerM": twine_mass_per_m,
+                                "massWaterPerM": sub_mass_per_m,
                             }
 
         for (u, v), m_data in mem_edges_dict.items():
             particle_mass[u] += m_data["mass"] * 0.5
             particle_mass[v] += m_data["mass"] * 0.5
-            particle_submerged_force[u, 2] -= m_data["sub_weight"] * 0.5
-            particle_submerged_force[v, 2] -= m_data["sub_weight"] * 0.5
+            air_weight = m_data["mass"] * GRAVITY_M_S2 * 0.5
+            particle_air_force[u, 2] -= air_weight
+            particle_air_force[v, 2] -= air_weight
 
     # Fallback mass for any free nodes
     for node in range(node_count):
@@ -1054,7 +1156,7 @@ def simulate_model(
         node_moments[node] += np.asarray(load["momentNm"], dtype=np.float64)
 
     # Net external force on free particles
-    particle_external_forces = particle_submerged_force + node_forces
+    particle_external_forces = particle_air_force + node_forces
 
     node_inv_mass = np.zeros(node_count, dtype=np.float64)
     for node in range(node_count):
@@ -1076,6 +1178,8 @@ def simulate_model(
     mem_end = np.asarray([m["end"] for m in mem_edges_dict.values()], dtype=np.int64)
     mem_len = np.asarray([m["length"] for m in mem_edges_dict.values()], dtype=np.float64)
     mem_comp = np.asarray([m["compliance"] for m in mem_edges_dict.values()], dtype=np.float64)
+    mem_mass_air = np.asarray([m["massAirPerM"] for m in mem_edges_dict.values()], dtype=np.float64)
+    mem_mass_water = np.asarray([m["massWaterPerM"] for m in mem_edges_dict.values()], dtype=np.float64)
 
     beam_mass_air = []
     beam_mass_water = []
@@ -1118,7 +1222,7 @@ def simulate_model(
 
         body_ext_force = np.zeros((len(body_centers), 3), dtype=np.float64)
         for b_idx in range(len(body_centers)):
-            body_ext_force[b_idx, 2] = -body_submerged_weights[b_idx]
+            body_ext_force[b_idx, 2] = -body_masses[b_idx] * GRAVITY_M_S2
 
         b_centers = np.asarray(body_centers, dtype=np.float64).reshape((-1, 3))
         b_mass = np.asarray(body_masses, dtype=np.float64)
@@ -1146,11 +1250,19 @@ def simulate_model(
             edge_takeup_rate,
             edge_compliance,
             edge_tension_only,
+            edge_mass_air,
+            edge_mass_water,
             edge_winch_index,
             mem_start,
             mem_end,
             mem_len,
             mem_comp,
+            mem_mass_air,
+            mem_mass_water,
+            beam_start_array,
+            beam_end_array,
+            np.asarray(beam_mass_air, dtype=np.float64),
+            np.asarray(beam_mass_water, dtype=np.float64),
             output_times,
             effective_step,
             iterations,
@@ -1233,8 +1345,10 @@ def simulate_model(
             submerged = 1.0 if first_z <= 0 and second_z <= 0 else 0.0 if first_z >= 0 and second_z >= 0 else (
                 -first_z / (second_z - first_z) if first_z < 0 else 1.0 + first_z / (second_z - first_z)
             )
-            effective_mass = edge["massAir"] * (1.0 - submerged) + edge["massWater"] * submerged
-            net_load += effective_mass * length * GRAVITY_M_S2
+            net_mass = edge["massAir"] * edge["length"] - (
+                edge["massAir"] - edge["massWater"]
+            ) * length * submerged
+            net_load += net_mass * GRAVITY_M_S2
         for beam_index, edge in enumerate(beam_output_edges):
             first, second, owner = edge
             first_z = float(current_positions[first, 2])
@@ -1243,8 +1357,11 @@ def simulate_model(
             submerged = 1.0 if first_z <= 0 and second_z <= 0 else 0.0 if first_z >= 0 and second_z >= 0 else (
                 -first_z / (second_z - first_z) if first_z < 0 else 1.0 + first_z / (second_z - first_z)
             )
-            effective_mass = beam_mass_air[beam_index] * (1.0 - submerged) + beam_mass_water[beam_index] * submerged
-            net_load += effective_mass * length * GRAVITY_M_S2
+            initial_length = float(np.linalg.norm(initial_positions[second] - initial_positions[first]))
+            net_mass = beam_mass_air[beam_index] * initial_length - (
+                beam_mass_air[beam_index] - beam_mass_water[beam_index]
+            ) * length * submerged
+            net_load += net_mass * GRAVITY_M_S2
         frame_net_vertical[frame_index] = net_load
 
     settings = {

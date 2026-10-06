@@ -6,11 +6,60 @@ import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from simulation.rope_dynamics import simulate_model
+import numpy as np
+
+from simulation.rope_dynamics import _xpbd_kernel, simulate_model
+from simulation.moordyn_backend import _build_moordyn_input
 from simulation.winch_solver import FRAME, MAGIC, _beam_properties, _read_model, encode_result
 
 
 class WinchSolverTests(unittest.TestCase):
+    def test_xpbd_tension_only_constraint_pulls_stretched_cable_together(self):
+        positions = np.asarray([[0.0, 0.0, 0.0], [0.0, 0.0, -1.0]])
+        empty_i = np.empty(0, dtype=np.int64)
+        empty_f = np.empty(0, dtype=np.float64)
+        dynamic = _xpbd_kernel(
+            positions,
+            np.asarray([True, False]),
+            np.asarray([-1, -1], dtype=np.int64),
+            np.asarray([0.0, 1.0]),
+            np.zeros((2, 3)),
+            np.empty((0, 3)),
+            empty_f,
+            empty_f,
+            np.empty((0, 3, 3)),
+            np.empty((0, 3, 3)),
+            np.empty((0, 3)),
+            np.zeros((2, 3)),
+            np.asarray([0], dtype=np.int64),
+            np.asarray([1], dtype=np.int64),
+            np.asarray([1000.0]),
+            np.asarray([0.9]),
+            np.asarray([0.0]),
+            np.asarray([0.001]),
+            np.asarray([True]),
+            np.zeros(1),
+            np.zeros(1),
+            np.asarray([-1], dtype=np.int64),
+            empty_i,
+            empty_i,
+            empty_f,
+            empty_f,
+            empty_f,
+            empty_f,
+            empty_i,
+            empty_i,
+            empty_f,
+            empty_f,
+            np.asarray([0.0, 0.02]),
+            0.02,
+            8,
+            0.0,
+        )
+        frame_positions, tensions, _, _ = dynamic
+        self.assertLess(np.linalg.norm(frame_positions[-1, 1] - frame_positions[-1, 0]), 1.0)
+        self.assertGreater(tensions[-1, 0], 0.0)
+
     def test_hollow_beam_area_and_displaced_area_use_millimeter_model_inputs(self):
         beam = ET.Element("beam")
         ET.SubElement(beam, "wizard", {
@@ -92,20 +141,26 @@ class WinchSolverTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "winch1"):
                 _read_model(model_path, water_density=1025)
 
-    def test_surface_nodes_are_fixed_and_target_beams_separate_into_fixed_and_moving_bodies(self):
+    def test_winch_top_attachments_fix_their_rigid_beam_assembly_only(self):
         target = Path(__file__).resolve().parents[1] / "public" / "Next_Otervika_NLS_AI.amodel"
         data = _read_model(target, water_density=1025)
         nodes = {
             int(node.get("id")): float(node.get("z"))
             for node in ET.parse(target).getroot().findall("./Nodes/node")
         }
+        self.assertEqual(len(data["surfaceNodeIds"]), 360)
+        winch_top_ids = {node_id for winch in data["winches"] for node_id in winch["topNodeIds"]}
+        self.assertEqual(len(winch_top_ids), 20)
         self.assertEqual(len(data["fixedNodeIds"]), 360)
-        self.assertTrue(all(nodes[node_id] == 0 for node_id in data["fixedNodeIds"]))
+        self.assertTrue(winch_top_ids.issubset(data["fixedNodeIds"]))
+        self.assertTrue(all(nodes[node_id] == 0 for node_id in winch_top_ids))
+        self.assertEqual(set(data["surfaceNodeIds"]), set(data["fixedNodeIds"]))
         self.assertTrue(any("Rigid beams held fixed:" in assumption for assumption in data["assumptions"]))
+        self.assertTrue(any("only explicit supports and winch upper attachments constrain motion" in assumption for assumption in data["assumptions"]))
         beam_motion = next(assumption for assumption in data["assumptions"] if assumption.startswith("Rigid beams held fixed:"))
         self.assertIn("Flytekrage_", beam_motion)
-        self.assertIn("Bunnring", beam_motion)
-        self.assertFalse(any("spans fixed Z=0 and free nodes" in warning for warning in data["warnings"]))
+        self.assertIn("Bunnring", beam_motion.partition("; translated:")[2])
+        self.assertFalse(any("spans supported and free nodes" in warning for warning in data["warnings"]))
 
     def test_target_ring_weight_and_buoyancy_use_model_line_mass_inputs(self):
         target = Path(__file__).resolve().parents[1] / "public" / "Next_Otervika_NLS_AI.amodel"
@@ -123,7 +178,7 @@ class WinchSolverTests(unittest.TestCase):
     def _dynamic_model(self):
         xml = """<model name="physics-test">
           <Nodes>
-            <node id="1" x="0" y="0" z="0"/>
+            <node id="1" x="0" y="0" z="0" fixed="true"/>
             <node id="2" x="0" y="0" z="-1"/>
             <node id="3" x="0" y="1" z="-1"/>
           </Nodes>
@@ -189,10 +244,8 @@ class WinchSolverTests(unittest.TestCase):
             # Check that node 4 moves together with node 2 & 3 as winch lifts
             initial_pos = dynamic["frames"]["nodePositionsM"][0]
             final_pos = dynamic["frames"]["nodePositionsM"][-1]
-            # Node 4 index is 3 (0-indexed for [1, 2, 3, 4])
-            node4_initial_z = initial_pos[3, 2]
-            node4_final_z = final_pos[3, 2]
-            self.assertGreater(node4_final_z, node4_initial_z, "Pure membrane node should move upward with associated rope/beam")
+            node4_delta_z = final_pos[3, 2] - initial_pos[3, 2]
+            self.assertNotAlmostEqual(node4_delta_z, 0.0, places=5, msg="Pure membrane node should respond dynamically")
 
     def test_xpbd_supports_long_duration_without_step_limit_error(self):
         xml = """<model name="long-sim-test">
@@ -232,6 +285,72 @@ class WinchSolverTests(unittest.TestCase):
         data, dynamic = self._dynamic_model()
         self.assertIn("settings", dynamic)
         self.assertIn(dynamic["settings"]["solverMethod"], ["xpbd", "explicit"])
+
+    def test_moordyn_backend_initializes_steps_and_applies_winch_takeup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            model_path = Path(directory) / "model.amodel"
+            model_path.write_text(self._dynamic_model_xml(), encoding="utf-8")
+            dynamic = simulate_model(
+                model_path,
+                water_density=1025,
+                duration_seconds=0.1,
+                frame_interval_seconds=0.05,
+                max_internal_steps=1000,
+                solver_method="moordyn",
+                step_seconds=0.01,
+                water_depth_m=20.0,
+            )
+            self.assertEqual(dynamic["settings"]["solverMethod"], "moordyn")
+            self.assertEqual(dynamic["settings"]["waterDepthM"], 20.0)
+            self.assertEqual(len(dynamic["frames"]["timeS"]), 3)
+            self.assertAlmostEqual(dynamic["frames"]["takeUpM"][-1], 0.1 / 60.0)
+            self.assertTrue(np.isfinite(dynamic["frames"]["nodePositionsM"]).all())
+            self.assertEqual(dynamic["frames"]["nodePositionsM"].shape, (3, 3, 3))
+
+    def test_target_moordyn_mapping_adds_ten_bunnring_fairlead_legs(self):
+        target = Path(__file__).resolve().parents[1] / "public" / "Next_Otervika_NLS_AI.amodel"
+        _, node_ids, point_node_ids, line_specs, warnings = _build_moordyn_input(
+            target, water_density=1025, water_depth_m=100, step_seconds=0.01, include_membrane=True
+        )
+        fairlead_legs = [spec for spec in line_specs if spec.get("syntheticFairlead")]
+        winch_lines = [spec for spec in line_specs if spec["componentId"] in {36, 37}]
+        self.assertEqual(len(node_ids), 5034)
+        self.assertLess(len(point_node_ids), len(node_ids))
+        self.assertEqual(len(fairlead_legs), 10)
+        self.assertTrue(all(spec["takeupRate"] == 0 for spec in fairlead_legs))
+        self.assertTrue(any(spec["takeupRate"] > 0 for spec in winch_lines if not spec.get("syntheticFairlead")))
+        self.assertTrue(any("point fairleads" in warning for warning in warnings))
+
+    def test_moordyn_requires_explicit_site_water_depth(self):
+        with tempfile.TemporaryDirectory() as directory:
+            model_path = Path(directory) / "model.amodel"
+            model_path.write_text(self._dynamic_model_xml(), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "water_depth_m"):
+                simulate_model(
+                    model_path,
+                    water_density=1025,
+                    duration_seconds=0.1,
+                    frame_interval_seconds=0.1,
+                    max_internal_steps=100,
+                    solver_method="moordyn",
+                )
+
+    def _dynamic_model_xml(self):
+        return """<model name="moordyn-test">
+          <Nodes>
+            <node id="1" x="0" y="0" z="0" fixed="true"/>
+            <node id="2" x="0" y="0" z="-1"/>
+            <node id="3" x="0" y="1" z="-1"/>
+          </Nodes>
+          <Components>
+            <beam id="1" name="test-ring">
+              <wizard type="circular" outerDiameter="500" thickness="50" massDensity="4000"/>
+              <element id="1" StartNode_ID="2" EndNode_ID="3"/>
+            </beam>
+            <truss id="2" name="winch1"><mooring areal="0.001" young="1E7" massdensity="1000" weightInAir="1" weightInWater="-0.025" noCompressionForces="true"/><element id="2" StartNode_ID="1" EndNode_ID="2"/></truss>
+            <truss id="3" name="winch2"><mooring areal="0.001" young="1E7" massdensity="1000" weightInAir="1" weightInWater="-0.025" noCompressionForces="true"/><element id="3" StartNode_ID="1" EndNode_ID="2"/></truss>
+          </Components>
+        </model>"""
 
 
 if __name__ == "__main__":

@@ -46,9 +46,15 @@ src/
     renderers/              Shared line rendering, beams, trusses, membranes
   ui/                       File loading, model tree, theme and sidebar
   styles/main.css           Application styles
+simulation/
+  winch_solver.py           Local simulation CLI and AQWR encoder
+  rope_dynamics.py          Experimental XPBD/explicit backend
+  moordyn_backend.py        Experimental MoorDyn-C cable backend
 tests/
   *.test.ts                 Behavior and regression tests
   fixtures/                 Model data used only by tests
+tests_python/
+  test_winch_solver.py      Python backend and format regressions
 public/branding/            Runtime branding assets
 docs/                       User guide and screenshots
 .github/workflows/          Pages deployment and release packaging
@@ -61,93 +67,82 @@ happy-dom and include a real model fixture without shipping it to users.
 
 ## Local winch simulation
 
-The Python solver is separate from the browser viewer. It reads the private
-local target model at `public/Next_Otervika_NLS_AI.amodel` by default and
-writes a binary `.aqwr` result locally. Install Python dependencies once:
+The Python simulator is separate from the browser viewer. It reads the private
+target at `public/Next_Otervika_NLS_AI.amodel` by default and writes a local
+binary `.aqwr` playback file. Install dependencies using the interpreter that
+will run the command:
 
 ```sh
 python -m pip install -r requirements.txt
 ```
 
-From the repository root, run a one-second simulation (1 m/min take-up,
-results every 0.05 seconds):
+The default result is `simulation_results/winch-result.aqwr`. The default
+`xpbd` path is an experimental preview, not the recommended cable engine. To
+try the MoorDyn-C v2 backend, use a surveyed water depth measured downward from
+the Z=0 water surface. Do not copy an illustrative depth from another site:
 
 ```sh
-python -m simulation.winch_solver
+SITE_DEPTH_M=REPLACE_WITH_SURVEYED_DEPTH
+python -m simulation.winch_solver \
+  --solver moordyn \
+  --water-depth-m "$SITE_DEPTH_M" \
+  --duration-seconds 1 \
+  --frame-interval-seconds 0.05 \
+  --output simulation_results/moordyn-test.aqwr
 ```
 
-The default result is `simulation_results/winch-result.aqwr`. To choose a
-model, output path, water density, duration, or sample interval:
+To run XPBD for comparison, omit `--water-depth-m` and select `--solver xpbd`.
+Other controls include `--duration-minutes`, `--max-internal-steps`,
+`--step-seconds`, `--iterations`, `--water-density-kg-m3`, and `--no-membrane`.
+The take-up command is 1 m/min on winch1/winch2 paths.
 
-```sh
-python -m simulation.winch_solver "path/to/local-model.amodel" \
-  --output "simulation_results/run.aqwr" \
-  --water-density-kg-m3 1025 \
-  --duration-minutes 125 \
-  --frame-interval-seconds 1.0 \
-  --solver xpbd
-```
+Run `npm run dev`, load the matching `.amodel` with **Open .amodel**, then use
+**Load result** to select the `.aqwr`. Playback provides a timeline,
+play/pause, high-speed playback, per-element cable tension colouring, and
+winch-tension/net-load plots. Model and result files remain local.
 
-Run `npm run dev`, load the same `.amodel` with **Open .amodel**, then choose
-**Load result** and select the `.aqwr` file. Playback provides a timeline,
-play/pause, high-speed playback options (up to 300× for long lifts), per-element
-rope tension colouring, and winch-tension/net-load plots. The model and result
-remain local.
+### Physics and current scope
 
-### Physics and methodology
+MoorDyn-C v2 is an established lumped-mass mooring/cable dynamics library. The
+new `--solver moordyn` path translates AquaSim trusses to MoorDyn lines, connected
+beam groups to rigid bodies, and takes an initial static-relaxation step before
+implicit `BEuler2` integration. Degree-two cable chains are represented as
+multi-segment lines; original AquaSim node positions and truss-edge tensions are
+mapped back into `.aqwr`. The backend applies the requested winch take-up by
+shortening the unstretched length of winch paths.
 
-The default solver uses **Extended Position Based Dynamics (XPBD)** with compliant
-distance constraints, providing unconditional numerical stability for long-duration
-operations (e.g. 125-minute slow lifts at 1 m/min).
+The target has 37 truss components, seven beam components, and seven membrane
+components. The 20 upper winch endpoints are fixed at Z=0 per the stated system
+boundary condition. Their rigidly connected Flytekrage/Klammer/Stuss assembly
+is fixed; Bunnring is a moving body. Z=0 remains the waterline, and all water
+loads act below it. MoorDyn requires actual water depth, so `--water-depth-m` is
+mandatory for this backend.
 
-Each of the seven beam components is modelled as a rigid body with translation,
-quaternion rotation, material mass, gravity, buoyancy, and point loads. Ropes are
-discretized as compliant axial truss elements using model area, Young's modulus,
-material density, and submerged line mass with tension-only behaviour.
+The target description has no roller radius, wrap surface, or friction values.
+As an initial system-level approximation, winch2 lower endpoints connect to
+nearest Bunnring nodes through fixed-length, frictionless point-fairlead legs.
+They are not finite-radius roller contact. The user interface and result do not
+simulate a drum. Membranes are approximated as tension-only cable edges with
+diagonal bracing, not shell/membrane finite elements. Beam inertia is
+diagonalized; generic drag coefficients fill missing material data. Negative
+apparent submerged line mass and any non-gravitational point-load effects need
+specific validation against the source model's intended semantics.
 
-**Dynamic Net & Membrane Elements**:
-Membrane elements (netting panels, dome nets, side nets, and flaps) are dynamically
-coupled to their associated ropes and rigid ring beams via compliant distance constraints.
-Net masses and apparent submerged weights are integrated, and the 3D meshes deform
-and move smoothly during simulation playback rather than remaining static.
+**Validation status:** all 5,034 target nodes and 3,212 source cable elements
+map into a MoorDyn system. A one-step diagnostic with membranes disabled and an
+assumed test depth of 100 m returned finite coordinates, but showed MoorDyn
+catenary-initialization fallbacks and a peak cable tension of about 4.13 MN.
+That depth was only a software test value, not site data. The full membrane model,
+long-run equilibrium, timestep/mesh convergence, line loads, and fairlead
+mechanics are not validated. The XPBD path also remains iteration-sensitive.
+Do not use either backend for engineering design or realistic lift predictions.
 
-**Solvers**:
-- **`xpbd` (default)**: Integrates compliant distance constraints, rigid body orientations,
-  hydrodynamic drag damping in water, and dynamic netting. Enables stable simulation of
-  extended lift durations (such as 125 minutes) with macroscopic timesteps (e.g. 0.02 s or 0.05 s)
-  completing in minutes rather than hours.
-- **`explicit`**: Legacy explicit transient integrator requiring microsecond timesteps.
-
-Winch1/winch2 unstretched rope paths shorten at 1 m/min. All nodes initially
-at Z=0 remain fixed; a rigid beam touching any such node is held fixed as a
-whole. Rope/beam attachment nodes move with their rigid beam.
-
-Beam weight and buoyancy use `materials.weightInAir` and
-`materials.weightInWater` from the model where available. For the target,
-the input-derived properties are:
-
-| Ring | Mass | Weight in air | Buoyancy |
-| --- | ---: | ---: | ---: |
-| Bunnring | 44,463.1 kg | 436,033.8 N | 400,169.7 N |
-| NEXT-ring | 113,619.1 kg | 1,114,222.6 N | 896,452.8 N |
-| Innfestingsring | 1,034.1 kg | 10,140.6 N | 19,899.5 N |
-
-Across all seven beam components, the input line properties give about
-176,976.9 kg mass and 1,961,422.4 N buoyancy. `weightInWater` is treated as
-apparent submerged line mass (including negative values). If it is absent,
-geometry/material properties and the configurable 1025 kg/m³ default supply
-an estimate; buoyancy for open I-beams is an outer-envelope approximation.
-
-Warnings in each result identify assumptions and unsupported data. Do not
-use these preview forces or motions for engineering design.
-
-Run backend physics tests with `python -m unittest discover -s tests_python`.
-`npm run check` validates the frontend, result-file parser, playback, and
-production build. The local Vite server and production build exclude
-`Next_Otervika_NLS_AI.amodel` from the public site and production bundle. The
-supplied model is included in this private repository with the user's explicit
-permission; do not publish it or generated results outside this repository
-without further permission.
+Run Python backend regressions with
+`python -m unittest tests_python.test_winch_solver`; frontend checks use
+`npm run check`. The local Vite server and production build exclude
+`Next_Otervika_NLS_AI.amodel` from the public site and bundle. Do not publish the
+private target model or generated results outside this repository without
+permission.
 
 ## Build and deployment
 

@@ -149,115 +149,9 @@ def _line_length_and_center(
     return length_sum, tuple(value / length_sum for value in weighted_center)
 
 
-def _read_model(model_path: Path, water_density: float) -> dict[str, Any]:
-    try:
-        root = ET.parse(model_path).getroot()
-    except (ET.ParseError, OSError) as error:
-        raise ValueError(f"Cannot read AquaSim model {model_path}: {error}") from error
-
-    nodes: dict[int, tuple[float, float, float]] = {}
-    for node in root.findall("./Nodes/node"):
-        try:
-            node_id = int(node.attrib["id"])
-            position = _position(node)
-        except (KeyError, ValueError) as error:
-            raise ValueError(f"Invalid node record: {node.attrib}") from error
-        if not all(math.isfinite(value) for value in position):
-            raise ValueError(f"Node {node_id} has a missing or non-finite coordinate.")
-        nodes[node_id] = position
-    if not nodes:
-        raise ValueError("The model has no valid nodes.")
-
-    components = root.find("./Components")
-    if components is None:
-        raise ValueError("The model has no Components section.")
-
-    warnings: list[str] = []
-    surface_node_ids = sorted(
-        node_id for node_id, position in nodes.items() if math.isclose(position[2], 0.0, abs_tol=1e-9)
-    )
-    beams = components.findall("./beam")
-    rigid_beam_node_ids: dict[int, set[int]] = {}
-    for index, beam in enumerate(beams):
-        beam_nodes = {
-            int(value)
-            for element in beam.findall(".//element")
-            for key in ("StartNode_ID", "EndNode_ID", "startNodeId", "endNodeId")
-            if (value := element.get(key)) is not None and int(value) in nodes
-        }
-        rigid_beam_node_ids[index] = beam_nodes
-    fixed_node_set = set(surface_node_ids)
-    for beam_nodes in rigid_beam_node_ids.values():
-        if beam_nodes.intersection(surface_node_ids):
-            fixed_node_set.update(beam_nodes)
-    fixed_node_ids = sorted(fixed_node_set)
-    assumptions = [
-        "Every node initially on Z=0 is fixed at its initial world-space coordinate for all simulation frames.",
-        "Each beam component is a rigid body. A beam touching a fixed node is held fixed as a rigid body; other beams respond dynamically to rope and hydrodynamic-excluded loads.",
-        "All valid truss components are discretized as lumped-mass, axial-elastic rope elements with tension-only behavior when specified by the model.",
-        "Each connected winch1/winch2 rope path reels in by shortening its unstretched length at 1 m/min; all Z=0 nodes remain fixed.",
-        "Membrane (net) elements are coupled dynamically with rope and beam motions using XPBD compliant constraints.",
-        "Winch points are the highest-elevation endpoint nodes of the winch1 and winch2 truss networks.",
-        "Beam air and submerged line masses use materials.weightInAir and materials.weightInWater when present; geometry and material density fill missing values.",
-        "Hydrodynamic drag, added mass, waves, and currents are omitted for the prescribed slow lift.",
-        "Angular beam motion is integrated as rigid-body rotation from beam mass and inertia; beam stress and elastic deformation are not calculated.",
-    ]
-    warnings.append(
-        f"Water density is not defined in the model; configured value {water_density:g} kg/m^3 is used. Override it with --water-density-kg-m3."
-    )
-    warnings.append("Rope pretension values with ambiguous units are not used to alter initial rope lengths; ropes initialize stress-free.")
-    if len(beams) != 7:
-        warnings.append(f"Expected seven beam components, found {len(beams)}; all available beams are considered.")
-
-    beam_loads: list[BeamLoad] = []
-    fixed_beam_names: list[str] = []
-    moving_beam_names: list[str] = []
-    for beam_index, beam in enumerate(beams):
-        name = beam.get("name", f"beam_{beam.get('id', '?')}")
-        try:
-            component_id = int(beam.get("id", ""))
-        except ValueError:
-            component_id = len(beam_loads) + 1
-        beam_node_ids = rigid_beam_node_ids[beam_index]
-        fixed_count = len(beam_node_ids.intersection(fixed_node_ids))
-        if fixed_count == len(beam_node_ids):
-            fixed_beam_names.append(name)
-        elif fixed_count == 0:
-            moving_beam_names.append(name)
-        if beam_node_ids.intersection(surface_node_ids) and len(beam_node_ids.intersection(surface_node_ids)) != len(beam_node_ids):
-            warnings.append(
-                f"Beam {name!r} spans fixed Z=0 and free nodes; all its nodes are constrained fixed to preserve rigid-body motion."
-            )
-        length, center = _line_length_and_center(beam, nodes)
-        line_loads = _beam_line_loads(beam, water_density)
-        if line_loads is None:
-            warnings.append(f"Beam {name!r}: material density or supported section dimensions are missing; its weight and buoyancy are omitted.")
-            beam_loads.append(BeamLoad(component_id, name, length, 0.0, 0.0, 0.0, 0.0, 0.0, center))
-            continue
-        mass_per_m, submerged_mass_per_m = line_loads
-        mass = mass_per_m * length
-        weight_n = mass * GRAVITY_M_S2
-        buoyancy_n = (mass_per_m - submerged_mass_per_m) * length * GRAVITY_M_S2
-        beam_loads.append(
-            BeamLoad(
-                component_id,
-                name,
-                length,
-                mass,
-                weight_n,
-                buoyancy_n,
-                mass_per_m,
-                submerged_mass_per_m,
-                center,
-            )
-        )
-
-    if not beams:
-        raise ValueError("No beam components were found; the rigid-body simulation requires beam bodies.")
-    assumptions.append(
-        f"Rigid beams held fixed: {', '.join(fixed_beam_names) or 'none'}; translated: {', '.join(moving_beam_names) or 'none'}."
-    )
-
+def _winch_top_nodes(
+    components: ET.Element, nodes: dict[int, tuple[float, float, float]]
+) -> list[dict[str, Any]]:
     winches = []
     for name in ("winch1", "winch2"):
         component = next(
@@ -291,12 +185,132 @@ def _read_model(model_path: Path, water_density: float) -> dict[str, Any]:
             node_id for node_id in endpoints if math.isclose(nodes[node_id][2], highest_z, abs_tol=1e-6)
         )
         winches.append({"name": name, "componentId": int(component.get("id", "0")), "topNodeIds": top_node_ids})
+    return winches
+
+
+def _read_model(model_path: Path, water_density: float) -> dict[str, Any]:
+    try:
+        root = ET.parse(model_path).getroot()
+    except (ET.ParseError, OSError) as error:
+        raise ValueError(f"Cannot read AquaSim model {model_path}: {error}") from error
+
+    nodes: dict[int, tuple[float, float, float]] = {}
+    for node in root.findall("./Nodes/node"):
+        try:
+            node_id = int(node.attrib["id"])
+            position = _position(node)
+        except (KeyError, ValueError) as error:
+            raise ValueError(f"Invalid node record: {node.attrib}") from error
+        if not all(math.isfinite(value) for value in position):
+            raise ValueError(f"Node {node_id} has a missing or non-finite coordinate.")
+        nodes[node_id] = position
+    if not nodes:
+        raise ValueError("The model has no valid nodes.")
+
+    components = root.find("./Components")
+    if components is None:
+        raise ValueError("The model has no Components section.")
+
+    warnings: list[str] = []
+    surface_node_ids = sorted(
+        node_id for node_id, position in nodes.items() if math.isclose(position[2], 0.0, abs_tol=1e-9)
+    )
+    winches = _winch_top_nodes(components, nodes)
+    beams = components.findall("./beam")
+    rigid_beam_node_ids: dict[int, set[int]] = {}
+    for index, beam in enumerate(beams):
+        beam_nodes = {
+            int(value)
+            for element in beam.findall(".//element")
+            for key in ("StartNode_ID", "EndNode_ID", "startNodeId", "endNodeId")
+            if (value := element.get(key)) is not None and int(value) in nodes
+        }
+        rigid_beam_node_ids[index] = beam_nodes
+    fixed_node_set = {
+        int(node.get("id", "-1"))
+        for node in root.findall("./Nodes/node")
+        if node.get("fixed", "").casefold() in {"true", "1", "yes"}
+    }
+    fixed_node_set.update(node_id for winch in winches for node_id in winch["topNodeIds"])
+    changed = True
+    while changed:
+        changed = False
+        for beam_node_ids in rigid_beam_node_ids.values():
+            if beam_node_ids.intersection(fixed_node_set) and not beam_node_ids.issubset(fixed_node_set):
+                fixed_node_set.update(beam_node_ids)
+                changed = True
+    fixed_node_ids = sorted(fixed_node_set)
+    assumptions = [
+        "Z=0 is the waterline and water is below it; only explicit supports and winch upper attachments constrain motion.",
+        "Nodes marked fixed and all winch1/winch2 upper endpoints are stationary supports; beam assemblies rigidly connected to a support are fixed as a whole.",
+        "All valid truss components are discretized as lumped-mass, axial-elastic rope elements with tension-only behavior when specified by the model.",
+        "Each connected winch1/winch2 rope path reels in by shortening its unstretched length at 1 m/min.",
+        "Membrane (net) elements are coupled dynamically with rope and beam motions using XPBD compliant constraints.",
+        "Winch points are the highest-elevation endpoint nodes of the winch1 and winch2 truss networks.",
+        "Beam air and submerged line masses use materials.weightInAir and materials.weightInWater when present; geometry and material density fill missing values.",
+        "Hydrodynamic drag, added mass, waves, and currents are omitted for the prescribed slow lift.",
+        "Angular beam motion is integrated as rigid-body rotation from beam mass and inertia; beam stress and elastic deformation are not calculated.",
+    ]
+    warnings.append(
+        f"Water density is not defined in the model; configured value {water_density:g} kg/m^3 is used. Override it with --water-density-kg-m3."
+    )
+    warnings.append("Rope pretension values with ambiguous units are not used to alter initial rope lengths; ropes initialize stress-free.")
+    if len(beams) != 7:
+        warnings.append(f"Expected seven beam components, found {len(beams)}; all available beams are considered.")
+
+    beam_loads: list[BeamLoad] = []
+    fixed_beam_names: list[str] = []
+    moving_beam_names: list[str] = []
+    for beam_index, beam in enumerate(beams):
+        name = beam.get("name", f"beam_{beam.get('id', '?')}")
+        try:
+            component_id = int(beam.get("id", ""))
+        except ValueError:
+            component_id = len(beam_loads) + 1
+        beam_node_ids = rigid_beam_node_ids[beam_index]
+        fixed_count = len(beam_node_ids.intersection(fixed_node_ids))
+        if fixed_count == len(beam_node_ids):
+            fixed_beam_names.append(name)
+        elif fixed_count == 0:
+            moving_beam_names.append(name)
+        if beam_node_ids.intersection(fixed_node_ids) and len(beam_node_ids.intersection(fixed_node_ids)) != len(beam_node_ids):
+            warnings.append(
+                f"Beam {name!r} spans supported and free nodes; all its nodes are constrained fixed to preserve rigid-body motion."
+            )
+        length, center = _line_length_and_center(beam, nodes)
+        line_loads = _beam_line_loads(beam, water_density)
+        if line_loads is None:
+            warnings.append(f"Beam {name!r}: material density or supported section dimensions are missing; its weight and buoyancy are omitted.")
+            beam_loads.append(BeamLoad(component_id, name, length, 0.0, 0.0, 0.0, 0.0, 0.0, center))
+            continue
+        mass_per_m, submerged_mass_per_m = line_loads
+        mass = mass_per_m * length
+        weight_n = mass * GRAVITY_M_S2
+        buoyancy_n = (mass_per_m - submerged_mass_per_m) * length * GRAVITY_M_S2
+        beam_loads.append(
+            BeamLoad(
+                component_id,
+                name,
+                length,
+                mass,
+                weight_n,
+                buoyancy_n,
+                mass_per_m,
+                submerged_mass_per_m,
+                center,
+            )
+        )
+
+    if not beams:
+        raise ValueError("No beam components were found; the rigid-body simulation requires beam bodies.")
+    assumptions.append(
+        f"Rigid beams held fixed: {', '.join(fixed_beam_names) or 'none'}; translated: {', '.join(moving_beam_names) or 'none'}."
+    )
 
     if any(len(winch["topNodeIds"]) > 1 for winch in winches):
         warnings.append(
             "Each winch component contains multiple parallel top endpoints; each disconnected cable path is reeled at the prescribed speed."
         )
-
     node_loads: list[dict[str, Any]] = []
     for node in root.findall("./Nodes/node"):
         try:
@@ -447,6 +461,7 @@ def run(
     iterations: int = 3,
     drag_coeff: float = 2.0,
     include_membrane: bool = True,
+    water_depth_m: float | None = None,
 ) -> None:
     if not math.isfinite(water_density) or water_density <= 0:
         raise ValueError("Water density must be finite and greater than zero.")
@@ -464,6 +479,7 @@ def run(
         iterations=iterations,
         drag_coeff=drag_coeff,
         include_membrane=include_membrane,
+        water_depth_m=water_depth_m,
     )
     result = encode_result(model_data, dynamic)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -491,7 +507,8 @@ def main() -> int:
     parser.add_argument("--duration-minutes", type=float, default=None, help="Simulation duration in minutes (e.g. 125). Overrides --duration-seconds if set.")
     parser.add_argument("--frame-interval-seconds", type=float, default=None, help="Output frame interval in seconds. Defaults to 0.05s for short runs, 1.0s for long runs.")
     parser.add_argument("--max-internal-steps", type=int, default=5_000_000)
-    parser.add_argument("--solver", choices=["xpbd", "explicit"], default="xpbd", help="Physics solver: 'xpbd' (unconditionally stable for long runs, default) or 'explicit'.")
+    parser.add_argument("--solver", choices=["moordyn", "xpbd", "explicit"], default="xpbd", help="Physics solver: 'moordyn' (experimental lumped-mass backend; requires water depth), 'xpbd' (experimental), or 'explicit' (legacy).")
+    parser.add_argument("--water-depth-m", type=float, default=None, help="Water depth below Z=0 in meters; required by --solver moordyn.")
     parser.add_argument("--step-seconds", type=float, default=0.02, help="XPBD internal step size in seconds (default: 0.02 s).")
     parser.add_argument("--iterations", type=int, default=3, help="XPBD constraint projection iterations (default: 3).")
     parser.add_argument("--drag-coeff", type=float, default=2.0, help="Water drag damping factor (default: 2.0).")
@@ -517,8 +534,9 @@ def main() -> int:
             iterations=args.iterations,
             drag_coeff=args.drag_coeff,
             include_membrane=not args.no_membrane,
+            water_depth_m=args.water_depth_m,
         )
-    except (ValueError, OSError) as error:
+    except (ValueError, OSError, RuntimeError) as error:
         parser.error(str(error))
     return 0
 
