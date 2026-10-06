@@ -83,23 +83,41 @@ model, output path, water density, duration, or sample interval:
 python -m simulation.winch_solver "path/to/local-model.amodel" \
   --output "simulation_results/run.aqwr" \
   --water-density-kg-m3 1025 \
-  --duration-seconds 10 \
-  --frame-interval-seconds 0.05
+  --duration-minutes 125 \
+  --frame-interval-seconds 1.0 \
+  --solver xpbd
 ```
 
 Run `npm run dev`, load the same `.amodel` with **Open .amodel**, then choose
 **Load result** and select the `.aqwr` file. Playback provides a timeline,
-play/pause, speed selection, per-element rope tension colouring, and
-winch-tension/net-load plots. The model and result remain local.
+play/pause, high-speed playback options (up to 300× for long lifts), per-element
+rope tension colouring, and winch-tension/net-load plots. The model and result
+remain local.
 
-### Physics and limitations
+### Physics and methodology
 
-This is an explicit transient system simulation, **not** an AquaSim solver or
-a quasi-static equilibrium/design analysis. Each of the seven beam
-components is modelled as a rigid body with translation, rotation, material
-mass, gravity, buoyancy, and point loads. Ropes are axial elastic,
-lumped-mass truss elements using model area, Young's modulus, density, and
-submerged line mass; tension-only behavior is applied when specified.
+The default solver uses **Extended Position Based Dynamics (XPBD)** with compliant
+distance constraints, providing unconditional numerical stability for long-duration
+operations (e.g. 125-minute slow lifts at 1 m/min).
+
+Each of the seven beam components is modelled as a rigid body with translation,
+quaternion rotation, material mass, gravity, buoyancy, and point loads. Ropes are
+discretized as compliant axial truss elements using model area, Young's modulus,
+material density, and submerged line mass with tension-only behaviour.
+
+**Dynamic Net & Membrane Elements**:
+Membrane elements (netting panels, dome nets, side nets, and flaps) are dynamically
+coupled to their associated ropes and rigid ring beams via compliant distance constraints.
+Net masses and apparent submerged weights are integrated, and the 3D meshes deform
+and move smoothly during simulation playback rather than remaining static.
+
+**Solvers**:
+- **`xpbd` (default)**: Integrates compliant distance constraints, rigid body orientations,
+  hydrodynamic drag damping in water, and dynamic netting. Enables stable simulation of
+  extended lift durations (such as 125 minutes) with macroscopic timesteps (e.g. 0.02 s or 0.05 s)
+  completing in minutes rather than hours.
+- **`explicit`**: Legacy explicit transient integrator requiring microsecond timesteps.
+
 Winch1/winch2 unstretched rope paths shorten at 1 m/min. All nodes initially
 at Z=0 remain fixed; a rigid beam touching any such node is held fixed as a
 whole. Rope/beam attachment nodes move with their rigid beam.
@@ -120,15 +138,6 @@ apparent submerged line mass (including negative values). If it is absent,
 geometry/material properties and the configurable 1025 kg/m³ default supply
 an estimate; buoyancy for open I-beams is an outer-envelope approximation.
 
-Membranes are omitted from force calculations and stay at their input
-positions during playback. Hydrodynamic drag, added mass, waves, currents,
-and nonzero/unsupported damping are omitted. Ambiguous pretension values
-are reported and ignored; ropes begin stress-free at their input geometry.
-With no specified damping, transient oscillations can persist. Surface and
-other fixed-node reactions are not solved, nor are beam stress or elastic
-deformation. The target's stiffness requires an estimated 5.84 μs explicit
-step (about 171,300 internal steps per simulated second); the solver reports
-this cost and refuses runs exceeding `--max-internal-steps`.
 Warnings in each result identify assumptions and unsupported data. Do not
 use these preview forces or motions for engineering design.
 

@@ -16,9 +16,10 @@ export interface WinchResultHeader {
         integrationStepSeconds: number;
         internalSteps: number;
         waterDensityKgM3: number;
-        membraneDynamics: false;
-        hydrodynamicDrag: false;
-        addedMass: false;
+        membraneDynamics: boolean;
+        solverMethod?: string;
+        hydrodynamicDrag: boolean;
+        addedMass: boolean;
     };
     beamLoads: Array<{
         componentId: number;

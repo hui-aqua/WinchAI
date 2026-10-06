@@ -196,7 +196,7 @@ def _read_model(model_path: Path, water_density: float) -> dict[str, Any]:
         "Each beam component is a rigid body. A beam touching a fixed node is held fixed as a rigid body; other beams respond dynamically to rope and hydrodynamic-excluded loads.",
         "All valid truss components are discretized as lumped-mass, axial-elastic rope elements with tension-only behavior when specified by the model.",
         "Each connected winch1/winch2 rope path reels in by shortening its unstretched length at 1 m/min; all Z=0 nodes remain fixed.",
-        "Membrane elements are excluded from dynamic forces and motion.",
+        "Membrane (net) elements are coupled dynamically with rope and beam motions using XPBD compliant constraints.",
         "Winch points are the highest-elevation endpoint nodes of the winch1 and winch2 truss networks.",
         "Beam air and submerged line masses use materials.weightInAir and materials.weightInWater when present; geometry and material density fill missing values.",
         "Hydrodynamic drag, added mass, waves, and currents are omitted for the prescribed slow lift.",
@@ -435,13 +435,36 @@ def encode_result(model_data: dict[str, Any], dynamic: dict[str, Any]) -> bytes:
     return bytes(result)
 
 
-def run(model_path: Path, output_path: Path, water_density: float, duration_seconds: float, frame_interval_s: float, max_internal_steps: int) -> None:
+def run(
+    model_path: Path,
+    output_path: Path,
+    water_density: float,
+    duration_seconds: float,
+    frame_interval_s: float,
+    max_internal_steps: int,
+    solver: str = "xpbd",
+    step_seconds: float = 0.02,
+    iterations: int = 3,
+    drag_coeff: float = 2.0,
+    include_membrane: bool = True,
+) -> None:
     if not math.isfinite(water_density) or water_density <= 0:
         raise ValueError("Water density must be finite and greater than zero.")
     model_data = _read_model(model_path, water_density)
     from .rope_dynamics import simulate_model
 
-    dynamic = simulate_model(model_path, water_density, duration_seconds, frame_interval_s, max_internal_steps)
+    dynamic = simulate_model(
+        model_path,
+        water_density,
+        duration_seconds,
+        frame_interval_s,
+        max_internal_steps,
+        solver_method=solver,
+        step_seconds=step_seconds,
+        iterations=iterations,
+        drag_coeff=drag_coeff,
+        include_membrane=include_membrane,
+    )
     result = encode_result(model_data, dynamic)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_bytes(result)
@@ -450,10 +473,10 @@ def run(model_path: Path, output_path: Path, water_density: float, duration_seco
     print(f"Beam mass: {model_data['totalMassKg']:.1f} kg; beam buoyancy: {model_data['buoyancyN']:.1f} N")
     print(
         f"Dynamic model: {len(dynamic['ropeElements']):,} rope elements; "
-        f"stable step {dynamic['settings']['integrationStepSeconds']:.3e} s; "
+        f"solver {solver.upper()} step {dynamic['settings']['integrationStepSeconds']:.3e} s; "
         f"{dynamic['settings']['internalSteps']:,} internal steps"
     )
-    print(f"Take-up: 1 m/min; duration: {duration_seconds:g} s; output frames: {len(dynamic['frames']['timeS'])}")
+    print(f"Take-up: 1 m/min; duration: {duration_seconds:g} s ({duration_seconds/60:.2f} min); output frames: {len(dynamic['frames']['timeS'])}")
     for warning in dynamic["warnings"]:
         print(f"WARNING: {warning}", file=sys.stderr)
 
@@ -464,18 +487,36 @@ def main() -> int:
     parser.add_argument("model", nargs="?", type=Path, default=default_model, help="Local AquaSim .amodel file.")
     parser.add_argument("--output", type=Path, default=Path("simulation_results") / "winch-result.aqwr")
     parser.add_argument("--water-density-kg-m3", type=float, default=1025.0)
-    parser.add_argument("--duration-seconds", type=float, default=1.0)
-    parser.add_argument("--frame-interval-seconds", type=float, default=0.05)
+    parser.add_argument("--duration-seconds", type=float, default=1.0, help="Simulation duration in seconds.")
+    parser.add_argument("--duration-minutes", type=float, default=None, help="Simulation duration in minutes (e.g. 125). Overrides --duration-seconds if set.")
+    parser.add_argument("--frame-interval-seconds", type=float, default=None, help="Output frame interval in seconds. Defaults to 0.05s for short runs, 1.0s for long runs.")
     parser.add_argument("--max-internal-steps", type=int, default=5_000_000)
+    parser.add_argument("--solver", choices=["xpbd", "explicit"], default="xpbd", help="Physics solver: 'xpbd' (unconditionally stable for long runs, default) or 'explicit'.")
+    parser.add_argument("--step-seconds", type=float, default=0.02, help="XPBD internal step size in seconds (default: 0.02 s).")
+    parser.add_argument("--iterations", type=int, default=3, help="XPBD constraint projection iterations (default: 3).")
+    parser.add_argument("--drag-coeff", type=float, default=2.0, help="Water drag damping factor (default: 2.0).")
+    parser.add_argument("--no-membrane", action="store_true", help="Disable dynamic membrane (net) motion.")
     args = parser.parse_args()
+
+    duration = args.duration_minutes * 60.0 if args.duration_minutes is not None else args.duration_seconds
+    if args.frame_interval_seconds is not None:
+        frame_interval = args.frame_interval_seconds
+    else:
+        frame_interval = 1.0 if duration >= 60.0 else 0.05
+
     try:
         run(
             args.model,
             args.output,
             args.water_density_kg_m3,
-            args.duration_seconds,
-            args.frame_interval_seconds,
+            duration,
+            frame_interval,
             args.max_internal_steps,
+            solver=args.solver,
+            step_seconds=args.step_seconds,
+            iterations=args.iterations,
+            drag_coeff=args.drag_coeff,
+            include_membrane=not args.no_membrane,
         )
     except (ValueError, OSError) as error:
         parser.error(str(error))

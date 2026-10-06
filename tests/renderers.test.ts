@@ -107,7 +107,7 @@ describe('AquaSim 3D Renderers and Geometry', () => {
         expect(midpoint.z).toBe(-4.5);
     });
 
-    it('keeps excluded membrane dynamics out of winch result playback', () => {
+    it('updates membrane net geometry dynamically during winch result playback and resets on clear', () => {
         const model = parseAmodelXml(`<model><Nodes>
             <node id="1" x="0" y="0" z="0"/>
             <node id="2" x="1" y="0" z="-1"/>
@@ -137,13 +137,14 @@ describe('AquaSim 3D Renderers and Geometry', () => {
         const mesh = membraneGroup.children[0].children[0] as THREE.Mesh;
         let positions = mesh.geometry.getAttribute('position');
         expect(positions.getZ(0)).toBe(0);
-        expect(positions.getZ(1)).toBe(-1);
-        expect(positions.getZ(2)).toBe(-1);
+        expect(positions.getZ(1)).toBe(0);
+        expect(positions.getZ(2)).toBe(0);
 
         viewer.clearWinchFrame();
         positions = mesh.geometry.getAttribute('position');
         expect(positions.getZ(0)).toBe(0);
         expect(positions.getZ(1)).toBe(-1);
+        expect(positions.getZ(2)).toBe(-1);
     });
 
     it('should create 3D solid cross-sections for circular and profile beams from amodel', () => {

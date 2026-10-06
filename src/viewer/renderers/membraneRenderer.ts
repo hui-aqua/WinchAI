@@ -121,3 +121,40 @@ export function createMembraneGroup(
 
     return membraneGroup;
 }
+
+/**
+ * Updates vertex positions and normals for all membrane meshes based on current dynamic node positions.
+ */
+export function updateMembraneState(
+    membraneGroup: THREE.Group,
+    nodePositions: ReadonlyMap<number, THREE.Vector3>
+): void {
+    for (const compGroup of membraneGroup.children) {
+        const nodeIds = compGroup.userData?.nodeIds as number[] | undefined;
+        if (!nodeIds || nodeIds.length === 0) continue;
+
+        // The meshes in compGroup share the same geometry
+        const mesh = compGroup.children.find((c) => c instanceof THREE.Mesh) as THREE.Mesh | undefined;
+        if (!mesh) continue;
+
+        const geometry = mesh.geometry as THREE.BufferGeometry;
+        const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
+        if (!posAttr) continue;
+
+        let modified = false;
+        for (let i = 0; i < nodeIds.length; i++) {
+            const nodeId = nodeIds[i];
+            const p = nodePositions.get(nodeId);
+            if (p) {
+                posAttr.setXYZ(i, p.x, p.y, p.z);
+                modified = true;
+            }
+        }
+
+        if (modified) {
+            posAttr.needsUpdate = true;
+            geometry.computeVertexNormals();
+            geometry.computeBoundingSphere();
+        }
+    }
+}

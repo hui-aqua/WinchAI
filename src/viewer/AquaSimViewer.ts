@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { AquaSimModel } from '@/parser/types';
 import { createBeamGroup, updateBeamScale } from './renderers/beamRenderer';
 import { createTrussGroup, updateTrussScale } from './renderers/trussRenderer';
-import { createMembraneGroup } from './renderers/membraneRenderer';
+import { createMembraneGroup, updateMembraneState } from './renderers/membraneRenderer';
 import { updateLineState } from './renderers/lineRenderer';
 import { fitCameraToModel } from './cameraUtils';
 
@@ -467,7 +467,7 @@ export class AquaSimViewer {
         }
     }
 
-    /** Apply the rigid vertical pose and tension colors from one playback sample. */
+    /** Apply the rigid vertical pose, membrane/net deformation, and tension colors from one playback sample. */
     public applyWinchFrame(
         nodePositions: ReadonlyMap<number, THREE.Vector3>,
         tensionByElementKey: ReadonlyMap<string, number>,
@@ -475,6 +475,7 @@ export class AquaSimViewer {
     ): void {
         updateLineState(this.beamGroup, nodePositions);
         updateLineState(this.trussGroup, nodePositions, tensionByElementKey, maximumTensionN);
+        updateMembraneState(this.membraneGroup, nodePositions);
     }
 
     public clearWinchFrame(): void {
@@ -484,6 +485,7 @@ export class AquaSimViewer {
         }
         updateLineState(this.beamGroup, positions);
         updateLineState(this.trussGroup, positions);
+        updateMembraneState(this.membraneGroup, positions);
     }
 
     /**

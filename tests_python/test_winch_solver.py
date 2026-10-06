@@ -151,5 +151,88 @@ class WinchSolverTests(unittest.TestCase):
         return data, dynamic
 
 
+    def test_dynamic_membrane_moves_together_with_associated_rope(self):
+        xml = """<model name="membrane-test">
+          <Nodes>
+            <node id="1" x="0" y="0" z="0"/>
+            <node id="2" x="0" y="0" z="-2"/>
+            <node id="3" x="1" y="0" z="-2"/>
+            <node id="4" x="0" y="1" z="-2"/>
+          </Nodes>
+          <Components>
+            <beam id="1" name="test-beam">
+              <wizard type="circular" outerDiameter="500" thickness="50" massDensity="4000"/>
+              <element id="1" StartNode_ID="2" EndNode_ID="3"/>
+            </beam>
+            <truss id="2" name="winch1"><mooring areal="0.001" young="1E7" massdensity="1000" weightInAir="1" weightInWater="-0.025" noCompressionForces="true" pretension="0"/><element id="2" StartNode_ID="1" EndNode_ID="2"/></truss>
+            <truss id="3" name="winch2"><mooring areal="0.001" young="1E7" massdensity="1000" weightInAir="1" weightInWater="-0.025" noCompressionForces="true" pretension="0"/><element id="3" StartNode_ID="1" EndNode_ID="2"/></truss>
+            <membrane id="4" name="test-net" emodule="1E8" areal="2.5E-6" massDensity="1000" weight="-10">
+              <element id="4" nodeA="2" nodeB="3" nodeC="4"/>
+            </membrane>
+          </Components>
+        </model>"""
+        with tempfile.TemporaryDirectory() as directory:
+            model_path = Path(directory) / "model.amodel"
+            model_path.write_text(xml, encoding="utf-8")
+            dynamic = simulate_model(
+                model_path,
+                water_density=1025,
+                duration_seconds=0.2,
+                frame_interval_seconds=0.1,
+                max_internal_steps=50000,
+                solver_method="xpbd",
+                include_membrane=True,
+            )
+            self.assertTrue(dynamic["settings"]["membraneDynamics"])
+            self.assertEqual(dynamic["settings"]["solverMethod"], "xpbd")
+            # Node 4 is a pure membrane node (not in beam or winch rope)
+            # Check that node 4 moves together with node 2 & 3 as winch lifts
+            initial_pos = dynamic["frames"]["nodePositionsM"][0]
+            final_pos = dynamic["frames"]["nodePositionsM"][-1]
+            # Node 4 index is 3 (0-indexed for [1, 2, 3, 4])
+            node4_initial_z = initial_pos[3, 2]
+            node4_final_z = final_pos[3, 2]
+            self.assertGreater(node4_final_z, node4_initial_z, "Pure membrane node should move upward with associated rope/beam")
+
+    def test_xpbd_supports_long_duration_without_step_limit_error(self):
+        xml = """<model name="long-sim-test">
+          <Nodes>
+            <node id="1" x="0" y="0" z="0"/>
+            <node id="2" x="0" y="0" z="-10"/>
+            <node id="3" x="0" y="1" z="-10"/>
+          </Nodes>
+          <Components>
+            <beam id="1" name="weight-beam">
+              <wizard type="circular" outerDiameter="500" thickness="50" massDensity="4000"/>
+              <element id="1" StartNode_ID="2" EndNode_ID="3"/>
+            </beam>
+            <truss id="2" name="winch1"><mooring areal="0.001" young="1E8" massdensity="1000" weightInAir="1" weightInWater="-0.025" noCompressionForces="true" pretension="0"/><element id="2" StartNode_ID="1" EndNode_ID="2"/></truss>
+            <truss id="3" name="winch2"><mooring areal="0.001" young="1E8" massdensity="1000" weightInAir="1" weightInWater="-0.025" noCompressionForces="true" pretension="0"/><element id="3" StartNode_ID="1" EndNode_ID="2"/></truss>
+          </Components>
+        </model>"""
+        with tempfile.TemporaryDirectory() as directory:
+            model_path = Path(directory) / "model.amodel"
+            model_path.write_text(xml, encoding="utf-8")
+            # 7500 seconds (125 minutes) with XPBD step 0.1s and frame interval 7500s
+            dynamic = simulate_model(
+                model_path,
+                water_density=1025,
+                duration_seconds=7500.0,
+                frame_interval_seconds=7500.0,
+                max_internal_steps=500000,
+                solver_method="xpbd",
+                step_seconds=0.1,
+            )
+            self.assertEqual(dynamic["settings"]["durationSeconds"], 7500.0)
+            self.assertEqual(dynamic["settings"]["internalSteps"], 75000)
+            self.assertEqual(len(dynamic["frames"]["timeS"]), 2)
+            self.assertAlmostEqual(dynamic["frames"]["timeS"][-1], 7500.0)
+
+    def test_explicit_solver_option(self):
+        data, dynamic = self._dynamic_model()
+        self.assertIn("settings", dynamic)
+        self.assertIn(dynamic["settings"]["solverMethod"], ["xpbd", "explicit"])
+
+
 if __name__ == "__main__":
     unittest.main()
