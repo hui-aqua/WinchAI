@@ -1,0 +1,28 @@
+{
+  "name": "aquasim-web-viewer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Browser-based 3D structural model viewer for AquaSim .amodel engineering simulation files",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test && vite build"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "happy-dom": "^20.14.5",
+    "typescript": "^5.6.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  },
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  }
+}

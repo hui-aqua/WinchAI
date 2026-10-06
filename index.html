@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="./branding/akva-group-icon.png" />
+    <link rel="apple-touch-icon" href="./branding/akva-group-icon.png" />
+    <title>AquaSim Web Viewer — Engineering 3D Model Inspection</title>
+    <meta name="description" content="Browser-based 3D structural model viewer for AquaSim .amodel engineering simulation files." />
+</head>
+<body>
+    <div id="app" class="app-layout">
+        <!-- Top Toolbar -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-icon">
+                    <img src="./branding/akva-group-icon.png" alt="AKVA group logo" />
+                </div>
+                <div>
+                    <h1 class="brand-title">AquaSim Web Viewer</h1>
+                </div>
+            </div>
+
+            <div class="toolbar-actions">
+                <button id="btn-toggle-theme" class="btn btn-icon theme-toggle" aria-label="Switch to light theme" title="Switch to light theme">
+                    <svg class="theme-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+                    <svg class="theme-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/></svg>
+                </button>
+                <input type="file" id="file-input" style="display: none;" />
+                <button id="btn-open-file" class="btn btn-primary" title="Open .amodel file from your computer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    Open .amodel
+                </button>
+                <div class="fit-switch" role="group" aria-label="Camera framing">
+                    <button id="btn-fit-view" class="fit-option" aria-label="Fit entire model" title="Fit entire model">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    </button>
+                    <button id="btn-fit-cage" class="fit-option" aria-label="Focus cage" title="Focus floating collar and net cage">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 1v4m0 14v4M1 12h4m14 0h4"/></svg>
+                    </button>
+                </div>
+                <div class="toolbar-divider"></div>
+                <button id="btn-toggle-camera" class="projection-switch" role="switch" aria-checked="false" aria-label="Orthographic projection" title="Perspective projection ? switch to Orthographic"><span class="projection-option projection-perspective"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="M5 5 19 8v8L5 19zM5 5v14M12 6.5v11M5 12h14"/></svg></span><span class="switch-track"><span class="switch-thumb"></span></span><span class="projection-option projection-orthographic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 12h16M12 4v16"/></svg></span></button>
+                <select id="select-render-mode" class="select-mode" title="Display mode for structural elements">
+                    <option value="both">Solid + Centerline</option>
+                    <option value="solid">Solid 3D Only</option>
+                    <option value="wireframe">Centerline Only</option>
+                </select>
+                <div class="toolbar-divider"></div>
+                <button id="btn-toggle-grid" class="btn btn-icon" title="Toggle Sea Surface Grid" aria-label="Sea surface grid" aria-pressed="false">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+                </button>
+                <button id="btn-toggle-axes" class="btn btn-icon" title="Toggle XYZ Axes Indicator" aria-label="XYZ axes indicator" aria-pressed="false">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 15V3m0 12h12M9 15l-6 6M6 6l3-3 3 3M18 12l3 3-3 3M3 17v4h4"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Body -->
+        <div class="app-body">
+            <!-- Left Sidebar -->
+            <aside id="model-sidebar" class="sidebar">
+                <div class="sidebar-section sidebar-tree-section">
+                    <div class="sidebar-heading">
+                        <span>MODEL COMPONENTS</span>
+                    </div>
+                    <div id="model-tree" class="sidebar-content">
+                        <div class="empty-state">No model loaded. Open or drop an .amodel file to begin.</div>
+                    </div>
+                </div>
+
+                <div class="sidebar-section sidebar-stats-section">
+                    <div class="sidebar-heading">
+                        <span>MODEL STATISTICS</span>
+                    </div>
+                    <div id="model-stats" class="sidebar-content">
+                        <div class="stat-placeholder">Statistics will appear once a model is loaded.</div>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="sidebar-toggle-rail">
+                <button id="btn-toggle-sidebar" class="sidebar-toggle" aria-controls="model-sidebar" aria-expanded="true" aria-label="Collapse model information panel" title="Collapse model information panel"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+            </div>
+
+            <!-- 3D Viewport Area -->
+            <main id="viewport-container" class="viewport-area">
+                <div id="drop-overlay" class="drop-overlay empty-state-visible">
+                    <div class="drop-modal">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="drop-title">Drop .amodel file here</p>
+                        <p class="drop-desc">Parsed completely client-side in your browser</p>
+                    </div>
+                </div>
+
+                <!-- Loading Spinner -->
+                <div id="loading-spinner" class="loading-overlay" style="display: none;">
+                    <div class="spinner"></div>
+                    <div id="loading-text" class="loading-text">Parsing AquaSim XML...</div>
+                </div>
+
+                <!-- Floating View Orientation Control Box -->
+                <div id="view-control-box" class="view-control-box">
+                    <div class="view-box-header">
+                        <span class="view-box-title">VIEW</span>
+                    </div>
+                    <div class="view-box-row">
+                        <button id="btn-view-x" class="v-btn v-btn-x" title="Front Elevation View (X+)">X+</button>
+                        <button id="btn-view-y" class="v-btn v-btn-y" title="Side Elevation View (Y+)">Y+</button>
+                        <button id="btn-view-z" class="v-btn v-btn-z" title="Top Plan View (Z+)">Z+</button>
+                        <button id="btn-view-iso" class="v-btn v-btn-iso" title="Reset to Isometric 3D View">3D</button>
+                    </div>
+                </div>
+
+                <section id="simulation-panel" class="simulation-panel" aria-label="Winch simulation playback">
+                    <div class="simulation-toolbar">
+                        <div class="simulation-title">
+                            <strong>WINCH SIMULATION</strong>
+                            <span id="simulation-status" role="status">Load a model to enable local result playback.</span>
+                        </div>
+                        <div class="simulation-actions">
+                            <input id="simulation-result-input" type="file" accept=".aqwr,application/octet-stream" hidden />
+                            <button id="btn-open-simulation-result" class="btn btn-secondary" title="Load a local binary result generated by the Python solver">Load result</button>
+                            <button id="btn-simulation-play" class="btn btn-secondary" disabled aria-pressed="false">Play</button>
+                            <label class="simulation-speed-label" for="simulation-speed">Speed</label>
+                            <select id="simulation-speed" class="select-mode" aria-label="Playback speed">
+                                <option value="0.25">0.25×</option>
+                                <option value="0.5">0.5×</option>
+                                <option value="1" selected>1×</option>
+                                <option value="2">2×</option>
+                                <option value="4">4×</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="simulation-timeline-row">
+                        <input id="simulation-timeline" type="range" min="0" max="0" value="0" disabled aria-label="Simulation timeline" />
+                        <output id="simulation-time" for="simulation-timeline">Load an .aqwr result generated by the local Python solver.</output>
+                    </div>
+                    <div id="simulation-plot-legend" class="simulation-plot-legend" hidden>
+                        <span><i class="legend-win ch1"></i> winch1 tension</span>
+                        <span><i class="legend-win ch2"></i> winch2 tension</span>
+                        <span><i class="legend-win net-load"></i> net vertical load</span>
+                    </div>
+                    <canvas id="simulation-force-plot" class="simulation-force-plot" aria-label="Winch tensions and net vertical load over time"></canvas>
+                    <ul id="simulation-warnings" class="simulation-warnings" hidden></ul>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
