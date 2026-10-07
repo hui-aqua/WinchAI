@@ -475,7 +475,7 @@ html, body {
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 10px 12px;
+    padding: 6px 8px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -582,7 +582,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
     z-index: 20;
     max-height: 40%;
     overflow-y: auto;
-    padding: 10px 12px;
+    padding: 6px 8px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background: rgba(15, 23, 42, 0.92);
@@ -593,8 +593,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 
 .simulation-toolbar,
 .simulation-actions,
-.simulation-timeline-row,
-.simulation-plot-legend {
+.simulation-timeline-row {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -603,26 +602,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 .simulation-toolbar {
     justify-content: space-between;
     gap: 12px;
-}
-
-.simulation-title {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.simulation-title strong {
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    color: var(--accent-blue);
-}
-
-#simulation-status {
-    overflow: hidden;
-    color: var(--text-secondary);
-    font-size: 10px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .simulation-actions {
@@ -645,49 +624,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 }
 
 #simulation-time {
-    min-width: 232px;
+    min-width: 85px;
     color: var(--text-primary);
     font-family: var(--font-mono);
     font-size: 10px;
     text-align: right;
-}
-
-.simulation-plot-legend {
-    justify-content: flex-end;
-    gap: 12px;
-    color: var(--text-secondary);
-    font-size: 9px;
-}
-
-.legend-win {
-    display: inline-block;
-    width: 9px;
-    height: 3px;
-    margin-right: 4px;
-    vertical-align: middle;
-    background: #38bdf8;
-}
-
-.legend-win.ch2 { background: #f59e0b; }
-.legend-win.net-load { background: #34d399; }
-
-.simulation-force-plot {
-    display: block;
-    width: 100%;
-    height: 92px;
-}
-
-.simulation-warnings {
-    max-height: 90px;
-    overflow-y: auto;
-    padding: 6px 8px 0 22px;
-    border-top: 1px solid var(--border-color);
-    color: #fbbf24;
-    font-size: 10px;
-}
-
-.simulation-warnings li + li {
-    margin-top: 3px;
 }
 
 @media (max-width: 760px) {
@@ -695,7 +636,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
     .simulation-toolbar { align-items: flex-start; flex-direction: column; }
     .simulation-actions { width: 100%; justify-content: flex-end; gap: 6px; }
     #simulation-time { min-width: 0; max-width: 50%; font-size: 9px; }
-    .simulation-plot-legend { justify-content: flex-start; gap: 8px; font-size: 8px; }
 }
 
 :root[data-theme="light"] .simulation-panel {
@@ -711,3 +651,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 .fit-option { display: flex; align-items: center; justify-content: center; width: 32px; height: 28px; padding: 0; border: 0; border-radius: 16px; background: transparent; color: var(--text-secondary); cursor: pointer; }
 .fit-option:hover, .fit-option:focus-visible { background: var(--bg-tertiary); color: var(--accent-blue); }
 .fit-option:active { background: var(--accent-blue); color: var(--bg-primary); }
+
+.simulation-toggle { float: right; margin-left: 8px; }
+.simulation-panel.is-collapsed { left: auto; padding: 4px; }
+.simulation-panel.is-collapsed .simulation-toggle { float: none; margin: 0; }
+#simulation-controls[hidden] { display: none; }
+.simulation-actions { flex-wrap: wrap; }
+.simulation-panel .btn, .simulation-panel .select-mode { min-height: 28px; height: 28px; padding: 3px 8px; }

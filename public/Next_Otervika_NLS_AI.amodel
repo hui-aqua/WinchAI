@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<model version="2.5" description="This xml file used for Aquasim system" name="New Model" created="12:00:40 11-05-2026" saved="14:20:18 06-10-2026" author="" lastVersion="2.22.1">
+<model version="2.5" description="This xml file used for Aquasim system" name="New Model" created="12:00:40 11-05-2026" saved="12:43:32 07-10-2026" author="" lastVersion="2.22.1">
   <materials />
   <Nodes>
     <node id="1" x="0.0" y="0.0" z="-60.2">
@@ -11378,7 +11378,7 @@
     </node>
     <node id="3764" x="0.0" y="0.0" z="-27.4">
       <dof6 TranslationX="true" TranslationY="true" TranslationZ="true" rotationX="true" rotationY="true" rotationZ="true" />
-      <pointLoad name="Luftlomme" ID="0" LoadType="100" active="true" shapeactive="false" raotableid="3" raotype="0">
+      <pointLoad name="Luftlomme" ID="0" LoadType="100" active="false" shapeactive="false" raotableid="3" raotype="0">
         <Force x="0.0" y="0.0" z="0.0" />
         <Momentum x="0.0" y="0.0" z="0.0" />
         <color red="1.0" green="0.0" blue="0.0" />
@@ -14179,15 +14179,9 @@
     </node>
     <node id="4696" x="-25.051" y="-8.14" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 15" active="true" shapeactive="false" elementA="null" elementB="6809" lastelementA="0" lastelementB="6682" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4697" x="-25.051" y="8.14" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 16" active="true" shapeactive="false" elementA="null" elementB="6789" lastelementA="0" lastelementB="6712" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4698" x="-24.99" y="-0.0" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -14248,15 +14242,9 @@
     </node>
     <node id="4717" x="-23.768" y="-7.722" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 2" active="true" shapeactive="false" elementA="6280" elementB="null" lastelementA="6250" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4718" x="-23.767" y="7.722" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 1" active="true" shapeactive="false" elementA="6311" elementB="null" lastelementA="6281" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4719" x="-23.564" y="-9.045" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -14440,15 +14428,9 @@
     </node>
     <node id="4779" x="-15.482" y="-21.31" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 14" active="true" shapeactive="false" elementA="null" elementB="6829" lastelementA="0" lastelementB="6652" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4780" x="-15.482" y="21.31" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 17" active="true" shapeactive="false" elementA="null" elementB="6779" lastelementA="0" lastelementB="6742" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4781" x="-15.159" y="-20.864" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -14464,15 +14446,9 @@
     </node>
     <node id="4785" x="-14.689" y="-20.217" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 3" active="true" shapeactive="false" elementA="6249" elementB="null" lastelementA="6219" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4786" x="-14.689" y="20.217" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 10" active="true" shapeactive="false" elementA="6342" elementB="null" lastelementA="6312" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4787" x="-14.346" y="-22.091" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -14668,18 +14644,12 @@
     </node>
     <node id="4851" x="-0.0" y="24.99" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 9" active="true" shapeactive="false" elementA="6063" elementB="null" lastelementA="6033" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4852" x="-0.0" y="25.79" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
     </node>
     <node id="4853" x="0.0" y="-26.34" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 13" active="true" shapeactive="false" elementA="null" elementB="6849" lastelementA="0" lastelementB="6622" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4854" x="0.0" y="-25.79" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -14689,18 +14659,12 @@
     </node>
     <node id="4856" x="0.0" y="-24.99" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 4" active="true" shapeactive="false" elementA="6218" elementB="null" lastelementA="6188" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4857" x="0.0" y="25.24" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
     </node>
     <node id="4858" x="0.0" y="26.34" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 18" active="true" shapeactive="false" elementA="null" elementB="6769" lastelementA="0" lastelementB="6472" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4859" x="1.321" y="-25.205" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -14896,15 +14860,9 @@
     </node>
     <node id="4923" x="14.689" y="-20.217" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 5" active="true" shapeactive="false" elementA="6187" elementB="null" lastelementA="6157" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4924" x="14.689" y="20.217" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 8" active="true" shapeactive="false" elementA="6094" elementB="null" lastelementA="6064" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4925" x="14.836" y="-20.42" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -14920,15 +14878,9 @@
     </node>
     <node id="4929" x="15.482" y="-21.31" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 12" active="true" shapeactive="false" elementA="null" elementB="6839" lastelementA="0" lastelementB="6592" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4930" x="15.482" y="21.31" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 19" active="true" shapeactive="false" elementA="null" elementB="6759" lastelementA="0" lastelementB="6502" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4931" x="15.884" y="-19.615" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -15112,15 +15064,9 @@
     </node>
     <node id="4991" x="23.767" y="-7.722" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 6" active="true" shapeactive="false" elementA="6156" elementB="null" lastelementA="6126" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4992" x="23.768" y="7.722" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 7" active="true" shapeactive="false" elementA="6125" elementB="null" lastelementA="6095" lastelementB="0" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="4993" x="24.005" y="-7.8" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -15181,15 +15127,9 @@
     </node>
     <node id="5012" x="25.051" y="-8.14" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 11" active="true" shapeactive="false" elementA="null" elementB="6819" lastelementA="0" lastelementB="6562" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="5013" x="25.051" y="8.14" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
-      <roller name="Roller 20" active="true" shapeactive="false" elementA="null" elementB="6799" lastelementA="0" lastelementB="6532" lengthA="0.1" lengthB="0.1" steppingfactor="1.0" decreasesteppingvalue="0.5" frictionForceTolerance="200.0" deltaforce="0.0">
-        <color red="1.0" green="0.0" blue="0.0" />
-      </roller>
     </node>
     <node id="5014" x="25.102" y="-2.638" z="0.0">
       <dof6 TranslationX="false" TranslationY="false" TranslationZ="false" rotationX="true" rotationY="true" rotationZ="true" />
@@ -16408,13 +16348,18 @@
       </elements>
     </beam>
     <beam id="3" name="Stuss" advancedBuoyancy="false" convolutionIntegral="false">
-      <crossection code="can't get code here" description="no description yet" width="0.0" height="0.0" thickness="0.0" symmetry="false" addedmasscoefflocaly="0.0" addedmasscoefflocalz="0.0" neutraldistanceymin="0.1" neutraldistanceymax="0.1" neutraldistancezmin="0.1" neutraldistancezmax="0.1" shearcoeffy="2.0" shearcoeffz="2.0" growcoeff="0.0" elementtype="0" globcross="0" torsionymin="0.1" torsionymax="0.1" torsionzmin="0.1" torsionzmax="0.1">
+      <crossection code="can't get code here" description="no description yet" width="0.0" height="0.0" thickness="0.0" symmetry="true" addedmasscoefflocaly="0.0" addedmasscoefflocalz="0.0" neutraldistanceymin="0.1" neutraldistanceymax="0.1" neutraldistancezmin="0.1" neutraldistancezmax="0.1" shearcoeffy="2.0" shearcoeffz="2.0" growcoeff="0.0" elementtype="0" globcross="0" torsionymin="0.1" torsionymax="0.1" torsionzmin="0.1" torsionzmax="0.1">
         <points>
           <point x="0.0" y="0.05" />
           <point x="0.0" y="-0.05" />
         </points>
       </crossection>
       <materials torsionmoduleg="3.5E8" iz="1.3E-4" iy="1.3E-4" it="2.6E-4" pretension="0.0" massdensity="0.0" crossectionvolume="0.0" young="1.1E9" crossectionareal="0.04" weightInAir="0.0" />
+      <hydrodynamicLoad numSections="2" hydroLengthCoeff="1.0" zneu="0.0" Zwline="0.0" trim="0.0" symmentry="true" zlocmass="0.0">
+        <crossectionGroup>
+          <points />
+        </crossectionGroup>
+      </hydrodynamicLoad>
       <loadmodel dragCoeffy="1.0" dragCoeffz="1.0" dragArealy="0.0" dragArealyz="0.0" constructionDamping="0.0" rayleighStiffness="0.0" tangentialDragCoefficient="0.0" numvelocities="0" hullnumPoints="0" closeSurfaceNumPoints="0" numWaveHeading="0" viscousRollDamping="1.0" massRadius="0.0" wavereduction="0.0" currentreduction="0.0" slammingshape="1" wavedampinghorizontal="0.0" wavedampingvertical="0.0" wavedampingrotation="0.0" cmtanfactor="0.0" LoadType="MORRISON" />
       <description active="true" locked="false" visible="true" stressVisible="true" des="">
         <color red="1.0" green="0.4" blue="0.6" />
@@ -25966,7 +25911,7 @@
       <mooring weightInAir="0.6432426" weightInWater="0.1019367991845056" areal="7.0686E-4" noCompressionForces="true" young="2.1E9" massdensity="910.0" addedmasscoefflocaly="1.0" addedmasscoefflocalz="1.0" pretension="-0.2" />
       <extra breakingload="0.0" materialcoefficient="3.0" trusstype="3" weighttoaimfor="0.0" />
       <loadmodel dragCoeffy="1.2" dragCoeffz="1.2" dragArealy="0.03" dragArealyz="0.03" constructionDamping="0.0" rayleighStiffness="0.0" tangentialDragCoefficient="0.0" numvelocities="0" hullnumPoints="0" closeSurfaceNumPoints="0" numWaveHeading="0" viscousRollDamping="1.0" massRadius="0.0" wavereduction="0.0" currentreduction="0.0" slammingshape="1" wavedampinghorizontal="0.0" wavedampingvertical="0.0" wavedampingrotation="0.0" cmtanfactor="0.0" LoadType="MORRISON" />
-      <description active="true" locked="false" visible="true" stressVisible="true" des="">
+      <description active="false" locked="false" visible="false" stressVisible="true" des="">
         <color red="0.339491" green="0.101644814" blue="0.16950297" />
       </description>
       <elements>
@@ -28148,6 +28093,7 @@
         </element>
         <element id="6063" StartNode_ID="4660" EndNode_ID="4851">
           <point3 x="0.0" y="0.0" z="0.0" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4851" />
         </element>
         <element id="6064" StartNode_ID="1805" EndNode_ID="2037">
           <point3 x="-3567.936137060606" y="-4910.842336622226" z="7895.266931610159" overwritten="true" />
@@ -28241,6 +28187,7 @@
         </element>
         <element id="6094" StartNode_ID="4662" EndNode_ID="4924">
           <point3 x="-5861.987529969371" y="-8068.333950347963" z="199.5403569937499" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4924" />
         </element>
         <element id="6095" StartNode_ID="1818" EndNode_ID="2058">
           <point3 x="-5773.041432992168" y="-1875.7750875528068" z="7895.266876191586" overwritten="true" />
@@ -28334,6 +28281,7 @@
         </element>
         <element id="6125" StartNode_ID="4664" EndNode_ID="4992">
           <point3 x="-9484.89468825078" y="-3081.829432691033" z="199.5403563577916" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4992" />
         </element>
         <element id="6126" StartNode_ID="1817" EndNode_ID="2057">
           <point3 x="-5773.041432992168" y="1875.7750875528068" z="7895.266876191586" overwritten="true" />
@@ -28427,6 +28375,7 @@
         </element>
         <element id="6156" StartNode_ID="4663" EndNode_ID="4991">
           <point3 x="-9484.89518825078" y="3081.829432691033" z="199.5403563577916" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4991" />
         </element>
         <element id="6157" StartNode_ID="1806" EndNode_ID="2036">
           <point3 x="-3567.935637060606" y="4910.842336622226" z="7895.266931610159" overwritten="true" />
@@ -28520,6 +28469,7 @@
         </element>
         <element id="6187" StartNode_ID="4661" EndNode_ID="4923">
           <point3 x="-5861.987529969371" y="8068.333950347963" z="199.5403569937499" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4923" />
         </element>
         <element id="6188" StartNode_ID="1793" EndNode_ID="2018">
           <point3 x="-7.449071651990915E-13" y="6070.13494321962" z="7895.26689504893" overwritten="true" />
@@ -28613,6 +28563,7 @@
         </element>
         <element id="6218" StartNode_ID="4659" EndNode_ID="4856">
           <point3 x="-1.2228716743961864E-12" y="9973.00903845865" z="199.5403574592553" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4856" />
         </element>
         <element id="6219" StartNode_ID="1782" EndNode_ID="2000">
           <point3 x="3567.936137060606" y="4910.842336622226" z="7895.266931610159" overwritten="true" />
@@ -28706,6 +28657,7 @@
         </element>
         <element id="6249" StartNode_ID="4657" EndNode_ID="4785">
           <point3 x="5861.987529969371" y="8068.333950347963" z="199.5403569937499" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4785" />
         </element>
         <element id="6250" StartNode_ID="1769" EndNode_ID="1979">
           <point3 x="5773.040932992168" y="1875.7750875528068" z="7895.266876191586" overwritten="true" />
@@ -28799,6 +28751,7 @@
         </element>
         <element id="6280" StartNode_ID="4655" EndNode_ID="4717">
           <point3 x="9484.89468825078" y="3081.829432691033" z="199.5403563577916" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4717" />
         </element>
         <element id="6281" StartNode_ID="1770" EndNode_ID="1980">
           <point3 x="5773.041432992168" y="-1875.7750875528068" z="7895.266876191586" overwritten="true" />
@@ -28892,6 +28845,7 @@
         </element>
         <element id="6311" StartNode_ID="4656" EndNode_ID="4718">
           <point3 x="9484.89518825078" y="-3081.829432691033" z="199.5403563577916" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4718" />
         </element>
         <element id="6312" StartNode_ID="1781" EndNode_ID="2001">
           <point3 x="3567.935637060606" y="-4910.842336622226" z="7895.266931610159" overwritten="true" />
@@ -28985,6 +28939,7 @@
         </element>
         <element id="6342" StartNode_ID="4658" EndNode_ID="4786">
           <point3 x="5861.987529969371" y="-8068.333950347963" z="199.5403569937499" overwritten="true" />
+          <winch name="Winch 1" velocity="0.016666" direction="true" active="true" shapeactive="false" segments="100" maxforce="0.0" node="4786" />
         </element>
         <element id="6343" StartNode_ID="4342" EndNode_ID="4343">
           <point3 x="0.0" y="26.989" z="99989.0" overwritten="true" />
@@ -30246,6 +30201,7 @@
         </element>
         <element id="6759" StartNode_ID="4672" EndNode_ID="4930">
           <point3 x="16.283299116418405" y="22.412267006920633" z="9995.12199923234" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="4930" />
         </element>
         <element id="6760" StartNode_ID="4410" EndNode_ID="4430">
           <point3 x="-3.974491846442591E-5" y="27.70290795744936" z="9995.12199923234" overwritten="true" />
@@ -30276,6 +30232,7 @@
         </element>
         <element id="6769" StartNode_ID="4670" EndNode_ID="4858">
           <point3 x="-3.974491846442591E-5" y="27.70290795744936" z="9995.12199923234" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="4858" />
         </element>
         <element id="6770" StartNode_ID="4408" EndNode_ID="4428">
           <point3 x="-16.28336342224129" y="22.412220286177806" z="9995.12199923234" overwritten="true" />
@@ -30306,6 +30263,7 @@
         </element>
         <element id="6779" StartNode_ID="4668" EndNode_ID="4780">
           <point3 x="-16.28336342224129" y="22.412220286177806" z="9995.12199923234" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="4780" />
         </element>
         <element id="6780" StartNode_ID="4406" EndNode_ID="4426">
           <point3 x="-26.347355752241715" y="8.56075186467727" z="9995.12199923234" overwritten="true" />
@@ -30336,6 +30294,7 @@
         </element>
         <element id="6789" StartNode_ID="4666" EndNode_ID="4697">
           <point3 x="-26.347355752241715" y="8.56075186467727" z="9995.12199923234" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="4697" />
         </element>
         <element id="6790" StartNode_ID="4414" EndNode_ID="4434">
           <point3 x="26.347331186789823" y="8.560827461876876" z="9995.12199923234" overwritten="true" />
@@ -30366,6 +30325,7 @@
         </element>
         <element id="6799" StartNode_ID="4674" EndNode_ID="5013">
           <point3 x="26.347331186789823" y="8.560827461876876" z="9995.12199923234" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="5013" />
         </element>
         <element id="6800" StartNode_ID="4405" EndNode_ID="4425">
           <point3 x="-26.347331186789823" y="-8.560827461876876" z="9995.12199923234" overwritten="true" />
@@ -30396,6 +30356,7 @@
         </element>
         <element id="6809" StartNode_ID="4665" EndNode_ID="4696">
           <point3 x="-26.347331186789823" y="-8.560827461876876" z="9995.12199923234" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="4696" />
         </element>
         <element id="6810" StartNode_ID="4413" EndNode_ID="4433">
           <point3 x="27.408" y="-8.905" z="99990.244" overwritten="true" />
@@ -30426,6 +30387,7 @@
         </element>
         <element id="6819" StartNode_ID="4673" EndNode_ID="5012">
           <point3 x="27.408" y="-8.905" z="99990.244" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="5012" />
         </element>
         <element id="6820" StartNode_ID="4407" EndNode_ID="4427">
           <point3 x="-16.283299116418405" y="-22.412267006920633" z="9995.12199923234" overwritten="true" />
@@ -30456,6 +30418,7 @@
         </element>
         <element id="6829" StartNode_ID="4667" EndNode_ID="4779">
           <point3 x="-16.283299116418405" y="-22.412267006920633" z="9995.12199923234" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="4779" />
         </element>
         <element id="6830" StartNode_ID="4411" EndNode_ID="4431">
           <point3 x="16.28336342224129" y="-22.412220286177806" z="9995.12199923234" overwritten="true" />
@@ -30486,6 +30449,7 @@
         </element>
         <element id="6839" StartNode_ID="4671" EndNode_ID="4929">
           <point3 x="16.28336342224129" y="-22.412220286177806" z="9995.12199923234" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="4929" />
         </element>
         <element id="6840" StartNode_ID="4409" EndNode_ID="4429">
           <point3 x="3.974491846442591E-5" y="-27.70290795744936" z="9995.12199923234" overwritten="true" />
@@ -30516,6 +30480,7 @@
         </element>
         <element id="6849" StartNode_ID="4669" EndNode_ID="4853">
           <point3 x="3.974491846442591E-5" y="-27.70290795744936" z="9995.12199923234" overwritten="true" />
+          <winch name="Winch 2" velocity="0.01666" direction="false" active="true" shapeactive="false" segments="0" maxforce="0.0" node="4853" />
         </element>
         <element id="6850" StartNode_ID="4406" EndNode_ID="4366">
           <point3 x="-27.089951242468867" y="8.802058729511229" z="9989.75599993224" overwritten="true" />
@@ -30890,7 +30855,7 @@
     </truss>
   </Components>
   <metadata>
-    <previousexport path="C:\aquasim\winchPro\NautilusNextWinch\try3" />
+    <previousexport path="C:\aquasim\winchPro\WinchAI\simulation_results\AquasimResult" />
   </metadata>
   <Environments>
     <EnvironmentLoad name="Normal" type="NORMAL" active="true">
@@ -30903,7 +30868,7 @@
           <windgenerator numberofwinds="100" spectrumtype="0" seed="0" windtype="0" isshortcrest="false" issymmetric="false" israndom="false" cosn="2.0" peek="1.0" x="0.0" y="0.0" />
         </environmentLoad>
       </EnvironmentLoads>
-      <TimeSerie PreIncrement="5" MaxIterationsPerStep="1000" NumTotalStepWave="1250" NumStepWaveOne="10" ConvergenceCriteria="1.0" iBottom="false" terrainAsBottom="false" zBottom="-100.0" epsBottom="1.0" FrictionCoeff="0.0" bottomfrictionvertical="0.0" bottomfrictionhorizontal="0.0" Wavereduction="true" ReportedSteps="1" depth="-1.0" slamming="true" convergence="0.0" currentReductionMethod="1" currentReduction="3" watervolumecorrection="true" masstype="0" threads="1" pfatomitted="true" dynamictolerance="0.0" crestingwavefactor="0.0" verifiedMembraneNormals="false" pythonEnabled="false">
+      <TimeSerie PreIncrement="5" MaxIterationsPerStep="1000" NumTotalStepWave="410" NumStepWaveOne="10" ConvergenceCriteria="1.0" iBottom="false" terrainAsBottom="false" zBottom="-100.0" epsBottom="1.0" FrictionCoeff="0.0" bottomfrictionvertical="0.0" bottomfrictionhorizontal="0.0" Wavereduction="true" ReportedSteps="1" depth="-1.0" slamming="true" convergence="0.0" currentReductionMethod="1" currentReduction="3" watervolumecorrection="true" masstype="0" threads="1" pfatomitted="true" dynamictolerance="0.0" crestingwavefactor="0.0" verifiedMembraneNormals="false" pythonEnabled="false">
         <hydrodynamic waveheading="90" hullpoints="40" freesurface="24" />
         <nonlineardensity active="false" />
         <stresses accelerations="false" velocities="false" rotation="true" stresscomponent="true" convergence="true" globalforces="true" hingeforces="true" vonmises="true" netforces="true" localsection="true" slammingparameters="true" arrowheight="false" />
