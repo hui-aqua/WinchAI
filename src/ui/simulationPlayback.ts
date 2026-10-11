@@ -19,6 +19,18 @@ export function setupSimulationPlayback(
     const plotLegend = document.getElementById('simulation-plot-legend') as HTMLElement;
     const warnings = document.getElementById('simulation-warnings') as HTMLElement;
 
+    const panel = document.getElementById('simulation-panel') as HTMLElement;
+    const toggleButton = document.getElementById('btn-toggle-simulation') as HTMLButtonElement;
+    const playbackControls = document.getElementById('simulation-controls') as HTMLElement;
+    toggleButton.addEventListener('click', () => {
+        const collapsed = !playbackControls.hidden;
+        playbackControls.hidden = collapsed;
+        panel.classList.toggle('is-collapsed', collapsed);
+        toggleButton.textContent = collapsed ? 'Show winch simulation' : 'Hide';
+        toggleButton.setAttribute('aria-expanded', String(!collapsed));
+        if (!collapsed) drawPlot(playbackTimeS);
+    });
+
     let result: WinchResult | null = null;
     let currentIndex = 0;
     let playbackTimeS = 0;
@@ -129,7 +141,7 @@ export function setupSimulationPlayback(
         });
         viewer.applyWinchFrame(nodePositions, tensionByElement, maximumResultTensionN);
         timeline.value = String(currentIndex);
-        timeLabel.textContent = `${formatTime(playbackTimeS)} · ${frame.takeUpM >= 0 ? 'retrieved' : 'paid out'} ${Math.abs(frame.takeUpM).toFixed(2)} m · mean vertical movement ${frame.translationZM.toFixed(2)} m`;
+        timeLabel.textContent = `${formatTime(playbackTimeS)} / ${formatTime(finalFrame.timeS)} · ${frame.takeUpM >= 0 ? 'retrieved' : 'paid out'} ${Math.abs(frame.takeUpM).toFixed(2)} m · mean vertical movement ${frame.translationZM.toFixed(2)} m`;
         drawPlot(playbackTimeS);
     }
 

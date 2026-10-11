@@ -43,3 +43,6 @@ __pycache__/
 .venv/
 models/*.amodel
 .pytest_cache/
+
+# Local source-model backups
+models/*.bak
