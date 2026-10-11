@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { findPlaybackInterval, playbackTimeFraction } from '@/simulation/playbackMath';
 import type { AquaSimModel } from '@/parser/types';
 import { assertResultMatchesModel, parseWinchResult, type WinchResult, type WinchResultFrame } from '@/simulation/resultFormat';
 import type { AquaSimViewer } from '@/viewer/AquaSimViewer';
@@ -6,7 +7,7 @@ import type { AquaSimViewer } from '@/viewer/AquaSimViewer';
 export function setupSimulationPlayback(
     viewer: AquaSimViewer,
     getModel: () => AquaSimModel | null
-): { setModel: (model: AquaSimModel) => void } {
+): { setModel: (model: AquaSimModel) => void; loadResult: (buffer: ArrayBuffer) => void } {
     const fileInput = document.getElementById('simulation-result-input') as HTMLInputElement;
     const openButton = document.getElementById('btn-open-simulation-result') as HTMLButtonElement;
     const playButton = document.getElementById('btn-simulation-play') as HTMLButtonElement;
@@ -22,6 +23,7 @@ export function setupSimulationPlayback(
     let currentIndex = 0;
     let playbackTimeS = 0;
     let maximumResultTensionN = 0;
+    let maximumPlotForceN = 1;
     let animationFrame: number | null = null;
     let lastTick = 0;
 
@@ -31,9 +33,9 @@ export function setupSimulationPlayback(
         return `${minutes}:${String(remainder).padStart(2, '0')}`;
     }
 
-    function drawPlot(frameIndex: number): void {
+    function drawPlot(timeS: number): void {
         const context = plot.getContext('2d');
-        if (!context || !result) return;
+        if (!context) return;
         const width = plot.clientWidth || 500;
         const height = plot.clientHeight || 115;
         const pixelRatio = window.devicePixelRatio || 1;
@@ -41,13 +43,12 @@ export function setupSimulationPlayback(
         plot.height = Math.round(height * pixelRatio);
         context.scale(pixelRatio, pixelRatio);
         context.clearRect(0, 0, width, height);
+        if (!result) return;
 
         const margin = { left: 54, right: 10, top: 8, bottom: 20 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
-        const maximum = Math.max(1, ...result.frames.flatMap(frame => [
-            frame.winch1TensionN, frame.winch2TensionN, Math.abs(frame.netVerticalLoadN)
-        ]));
+        const maximum = maximumPlotForceN;
         context.font = '10px ui-monospace, monospace';
         context.strokeStyle = '#475569';
         context.fillStyle = '#94a3b8';
@@ -71,7 +72,7 @@ export function setupSimulationPlayback(
             context.strokeStyle = line.color;
             context.lineWidth = 1.7;
             result.frames.forEach((frame, index) => {
-                const x = margin.left + (result!.frames.length < 2 ? 0 : chartWidth * index / (result!.frames.length - 1));
+                const x = margin.left + chartWidth * playbackTimeFraction(result!.frames, frame.timeS);
                 const y = margin.top + chartHeight * (1 - Math.min(maximum, Math.abs(frame[line.key] as number)) / maximum);
                 if (index === 0) context.moveTo(x, y);
                 else context.lineTo(x, y);
@@ -79,7 +80,7 @@ export function setupSimulationPlayback(
             context.stroke();
         }
 
-        const cursorX = margin.left + (result.frames.length < 2 ? 0 : chartWidth * frameIndex / (result.frames.length - 1));
+        const cursorX = margin.left + chartWidth * playbackTimeFraction(result.frames, timeS);
         context.beginPath();
         context.strokeStyle = '#f8fafc';
         context.lineWidth = 1;
@@ -92,13 +93,9 @@ export function setupSimulationPlayback(
         if (!result) return;
         const finalFrame = result.frames[result.frames.length - 1];
         playbackTimeS = Math.max(0, Math.min(finalFrame.timeS, timeS));
-        let upperIndex = 1;
-        while (upperIndex < result.frames.length && result.frames[upperIndex].timeS < playbackTimeS) upperIndex++;
-        const lowerIndex = Math.min(result.frames.length - 1, upperIndex - 1);
+        const { lower: lowerIndex, upper: upperIndex, fraction } = findPlaybackInterval(result.frames, playbackTimeS);
         const lower = result.frames[lowerIndex];
-        const upper = result.frames[Math.min(result.frames.length - 1, upperIndex)];
-        const interval = upper.timeS - lower.timeS;
-        const fraction = interval > 0 ? (playbackTimeS - lower.timeS) / interval : 0;
+        const upper = result.frames[upperIndex];
         const interpolate = (a: number, b: number) => a + (b - a) * fraction;
         const frame: WinchResultFrame = {
             timeS: playbackTimeS,
@@ -132,8 +129,8 @@ export function setupSimulationPlayback(
         });
         viewer.applyWinchFrame(nodePositions, tensionByElement, maximumResultTensionN);
         timeline.value = String(currentIndex);
-        timeLabel.textContent = `${formatTime(playbackTimeS)} · take-up ${frame.takeUpM.toFixed(2)} m · ${frame.translationZM.toFixed(2)} m submerged lift`;
-        drawPlot(currentIndex);
+        timeLabel.textContent = `${formatTime(playbackTimeS)} · ${frame.takeUpM >= 0 ? 'retrieved' : 'paid out'} ${Math.abs(frame.takeUpM).toFixed(2)} m · mean vertical movement ${frame.translationZM.toFixed(2)} m`;
+        drawPlot(playbackTimeS);
     }
 
     function applyFrame(index: number): void {
@@ -169,9 +166,17 @@ export function setupSimulationPlayback(
         const file = fileInput.files?.[0];
         fileInput.value = '';
         if (!file) return;
+        try {
+            loadResult(await file.arrayBuffer());
+        } catch (error) {
+            status.textContent = error instanceof Error ? error.message : String(error);
+        }
+    });
+
+    function loadResult(buffer: ArrayBuffer): void {
         stop();
         try {
-            const parsed = parseWinchResult(await file.arrayBuffer());
+            const parsed = parseWinchResult(buffer);
             const model = getModel();
             if (!model) throw new Error('Load the matching .amodel file before opening simulation results.');
             assertResultMatchesModel(parsed, model.name || 'AquaSim Model', [...model.nodes.values()]);
@@ -179,7 +184,9 @@ export function setupSimulationPlayback(
             currentIndex = 0;
             playbackTimeS = 0;
             maximumResultTensionN = 0;
+            maximumPlotForceN = 1;
             for (const frame of parsed.frames) {
+                maximumPlotForceN = Math.max(maximumPlotForceN, frame.winch1TensionN, frame.winch2TensionN, Math.abs(frame.netVerticalLoadN));
                 for (const tension of frame.ropeTensionsN) {
                     maximumResultTensionN = Math.max(maximumResultTensionN, tension);
                 }
@@ -189,7 +196,7 @@ export function setupSimulationPlayback(
             timeline.step = '1';
             timeline.disabled = false;
             playButton.disabled = false;
-            status.textContent = `${parsed.header.modelName} · ${parsed.frames.length} frames · ${parsed.header.ropeElements.length} dynamic rope elements · ${parsed.header.settings.takeUpSpeedMPerMin} m/min take-up`;
+            status.textContent = `${parsed.header.modelName} · ${parsed.frames.length} frames · ${parsed.header.ropeElements.length} cable elements · ${parsed.header.settings.solverMethod === 'quasi-static' ? 'quasi-static equilibria' : `${parsed.header.settings.takeUpSpeedMPerMin} m/min take-up`}`;
             warnings.replaceChildren();
             for (const message of parsed.header.warnings) {
                 const item = document.createElement('li');
@@ -213,8 +220,10 @@ export function setupSimulationPlayback(
             warnings.replaceChildren();
             warnings.hidden = true;
             plotLegend.hidden = true;
+            drawPlot(0);
+            throw error;
         }
-    });
+    }
 
     timeline.addEventListener('input', () => {
         stop();
@@ -232,9 +241,10 @@ export function setupSimulationPlayback(
         animationFrame = requestAnimationFrame(tick);
     });
 
-    window.addEventListener('resize', () => drawPlot(currentIndex));
+    window.addEventListener('resize', () => drawPlot(playbackTimeS));
 
     return {
+        loadResult,
         setModel(model: AquaSimModel): void {
             stop();
             result = null;

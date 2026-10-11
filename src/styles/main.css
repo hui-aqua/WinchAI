@@ -629,6 +629,77 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
     flex-shrink: 0;
 }
 
+.winch-simulation-dialog {
+    width: min(440px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    margin: auto;
+    padding: 20px;
+    overflow-y: auto;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-hover);
+    border-radius: 10px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.winch-simulation-dialog::backdrop {
+    background: rgba(2, 6, 23, 0.72);
+}
+
+.winch-simulation-dialog form {
+    display: grid;
+    gap: 9px;
+}
+
+.winch-simulation-dialog h2 {
+    margin-bottom: 2px;
+    font-size: 18px;
+}
+
+.winch-model-name,
+.winch-simulation-notice,
+.winch-run-status {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.winch-simulation-dialog label {
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+.winch-simulation-dialog input,
+.winch-simulation-dialog select {
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 8px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-hover);
+    border-radius: 5px;
+}
+
+.winch-simulation-notice {
+    margin-top: 4px;
+    color: var(--accent-amber);
+}
+
+.winch-simulation-dialog small.winch-simulation-notice {
+    margin-top: -5px;
+    color: var(--text-secondary);
+}
+
+.winch-run-status {
+    min-height: 17px;
+}
+
+.winch-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
 .simulation-speed-label {
     color: var(--text-secondary);
     font-size: 11px;
@@ -693,13 +764,17 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 @media (max-width: 760px) {
     .simulation-panel { left: 8px; right: 8px; bottom: 8px; max-height: 48%; }
     .simulation-toolbar { align-items: flex-start; flex-direction: column; }
-    .simulation-actions { width: 100%; justify-content: flex-end; gap: 6px; }
+    .simulation-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
     #simulation-time { min-width: 0; max-width: 50%; font-size: 9px; }
     .simulation-plot-legend { justify-content: flex-start; gap: 8px; font-size: 8px; }
 }
 
 :root[data-theme="light"] .simulation-panel {
     background: rgba(255, 255, 255, 0.94);
+}
+
+:root[data-theme="light"] .winch-simulation-dialog {
+    background: var(--bg-secondary);
 }
 
 .theme-toggle { width: 36px; height: 36px; padding: 0; justify-content: center; flex-shrink: 0; }

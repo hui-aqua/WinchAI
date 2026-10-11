@@ -5,6 +5,7 @@ import { setupFileLoader } from '@/ui/fileLoader';
 import { ModelTreeUI } from '@/ui/modelTree';
 import type { AquaSimModel } from '@/parser/types';
 import { setupSimulationPlayback } from '@/ui/simulationPlayback';
+import { setupWinchSimulation } from '@/ui/winchSimulation';
 
 export function initializeApp(): void {
     // DOM Elements
@@ -20,6 +21,8 @@ export function initializeApp(): void {
     const viewer = new AquaSimViewer(viewportContainer);
     let currentModel: AquaSimModel | null = null;
     const simulationPlayback = setupSimulationPlayback(viewer, () => currentModel);
+    const winchSimulation = setupWinchSimulation(simulationPlayback);
+    winchSimulation.setModelFile(null);
 
     setupPreferences(viewer);
 
@@ -41,13 +44,14 @@ export function initializeApp(): void {
         loadingSpinner.style.display = 'none';
     }
 
-    function handleModelLoaded(model: AquaSimModel, filename: string) {
+    function handleModelLoaded(model: AquaSimModel, filename: string, file: File) {
         hideLoading();
         currentModel = model;
 
         // Load into 3D scene
         viewer.loadModel(model);
         simulationPlayback.setModel(model);
+        winchSimulation.setModelFile(file);
         dropOverlay.classList.remove('empty-state-visible');
 
         // Update hierarchy and statistics in UI

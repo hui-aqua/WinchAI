@@ -27,71 +27,34 @@ The theme button switches dark and light backgrounds and saves the preference
 when storage is available. The sidebar arrow hides or shows model information.
 The sidebar starts collapsed on narrow screens.
 
-## Winch simulation playback
+## Winch simulation
 
-The simulation panel plays local `.aqwr` binary results produced by the
-Python solver. Install its dependencies with
-`python -m pip install -r requirements.txt`, then run
-`python -m simulation.winch_solver` from the repository root. Load the
-matching `.amodel` and select **Load result**.
-Use play/pause, the timeline, and speed selector to inspect node motion.
-Winch rope elements are coloured by their computed axial tension; the plot
-shows the two winch endpoint tensions and the instantaneous net vertical
-load. Neither model nor result is sent to a server.
+Install dependencies with `python -m pip install -r requirements.txt` and
+`npm ci`, then start the integrated local GUI and solver API from the
+repository root with `npm run winch`. Open `http://127.0.0.1:8765/`, load an
+`.amodel`, and click **Winch Simulation**.
 
-### Run MoorDyn
+Set the cable change (positive lowers, negative retrieves) and initial cable-length increment. The
+increment defaults to 50 mm. The quasi-static solver adapts this step size near
+free-surface crossings, cable slack/taut transitions, constraint changes, and
+failed equilibrium solves. Accepted equilibrium states are warm-started from
+the previous state. Force/tension, displacement, buoyancy, and constraint
+convergence are checked separately; failed solves are retried at a smaller
+increment or reported as failures.
 
-The default `xpbd` path remains an experimental preview. The recommended
-experimental cable-dynamics path uses MoorDyn-C v2. Supply a real site water
-depth below Z=0; the solver deliberately has no guessed default:
+The solver is not tied to real elapsed time. The result timeline represents
+the sequence of solved payout states. Use play/pause, the timeline, and speed
+selector to inspect structural positions and cable tension colouring. Playback
+speed affects presentation only and does not alter the equilibrium solution.
+The model is sent only to the loopback Python process, used temporarily, and
+not sent to a remote server. The GitHub Pages viewer is static and cannot run
+local Python calculations.
 
-```sh
-SITE_DEPTH_M=REPLACE_WITH_SURVEYED_DEPTH
-python -m simulation.winch_solver \
-  --solver moordyn \
-  --water-depth-m "$SITE_DEPTH_M" \
-  --duration-seconds 1 \
-  --frame-interval-seconds 0.05 \
-  --output simulation_results/moordyn-test.aqwr
-```
-
-Replace the depth placeholder with surveyed/site data before running. Install
-the dependency with the same Python interpreter used for the command:
-`python -m pip install -r requirements.txt`.
-
-Other useful options are `--duration-minutes`, `--max-internal-steps`,
-`--step-seconds`, `--iterations`, `--water-density-kg-m3`, and
-`--no-membrane`. The take-up rate is fixed at 1 m/min for winch paths.
-`--solver xpbd` is still available for comparison but is not numerically
-converged on the target model.
-
-### Model assumptions and validation
-
-The target's 20 upper winch endpoints are fixed at Z=0 per the system boundary
-definition, fixing their connected Flytekrage/Klammer/Stuss beam assembly while
-the Bunnring remains moving. Winch2's lower endpoints connect to nearest
-Bunnring nodes as ideal frictionless point fairleads. MoorDyn models trusses as
-lumped-mass lines, beams as rigid bodies, and membranes as cable-edge/diagonal
-approximations. The `.amodel` has no roller radius, wrap surface, or friction
-properties, so the fairleads are not finite-radius roller contacts.
-
-The target has seven rigid beam groups, 37 truss components, and seven
-membrane components. Degree-two truss chains are condensed into multi-segment
-MoorDyn lines; their internal node positions and per-element tensions are
-mapped back to the original node IDs. Membranes are represented as tension-only
-edge and diagonal cable approximations, not membrane finite elements. Beam
-inertia is diagonalized, and generic drag coefficients are used where material
-coefficients are absent.
-
-One short target diagnostic with membranes disabled and a test-only 100 m depth
-returned finite coordinates after one 0.01 s step, but still reported MoorDyn
-catenary-initialization fallbacks and a peak cable tension near 4.13 MN. The
-100 m value was not supplied as site data. The full membrane-enabled target,
-long-duration equilibrium, timestep/mesh convergence, measured loads, and
-finite-radius roller mechanics are not validated. Treat both solver modes as
-experimental visualization only; do not use their outputs for engineering
-design. For the detailed solver scope and known limitations, see the README's
-Physics and current scope section.
+The current solver remains under development and is not a certified
+engineering package. Routing follows explicit model connectivity and omits roller radius,
+wrap contact, and friction; membranes are approximated as cable-edge/diagonal
+networks rather than shell finite elements. Validate materials, loads,
+winch routing, and model assumptions before engineering use.
 
 ## Components and statistics
 

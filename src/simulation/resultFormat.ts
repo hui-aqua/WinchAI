@@ -16,12 +16,27 @@ export interface WinchResultHeader {
         integrationStepSeconds: number;
         internalSteps: number;
         waterDensityKgM3: number;
+        payoutM?: number;
+        initialIncrementM?: number;
+        minimumIncrementM?: number;
+        acceptedSteps?: number;
+        rejectedSteps?: number;
         waterDepthM?: number;
         membraneDynamics: boolean;
         solverMethod?: string;
         hydrodynamicDrag: boolean;
         addedMass: boolean;
     };
+    convergence?: Array<{
+        forceResidualN: number;
+        momentResidualNm: number;
+        displacementM: number;
+        tensionChangeN: number;
+        buoyancyChangeN: number;
+        constraintErrorM: number;
+        incrementM?: number;
+        event?: boolean;
+    }>;
     beamLoads: Array<{
         componentId: number;
         name: string;
@@ -92,7 +107,7 @@ export function parseWinchResult(buffer: ArrayBuffer): WinchResult {
         throw new Error(`Unable to decode result metadata: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    if (header.schema !== 'aquasim-winch-result' || header.version !== VERSION) {
+    if (!header || typeof header !== 'object' || header.schema !== 'aquasim-winch-result' || header.version !== VERSION) {
         throw new Error('The result metadata has an unsupported schema or version.');
     }
     if (!Number.isInteger(header.frameCount) || header.frameCount < 1 ||
@@ -102,7 +117,10 @@ export function parseWinchResult(buffer: ArrayBuffer): WinchResult {
     if (buffer.byteLength !== dataOffset + header.frameCount * header.frameRecordBytes) {
         throw new Error('The binary result length does not match its declared frame count.');
     }
-    if (!Array.isArray(header.nodeIds) || !Array.isArray(header.nodePositionsM) ||
+    if (typeof header.modelName !== 'string' ||
+        !Array.isArray(header.nodeIds) || !header.nodeIds.every(Number.isInteger) ||
+        new Set(header.nodeIds).size !== header.nodeIds.length ||
+        !Array.isArray(header.nodePositionsM) ||
         header.nodePositionsM.length !== header.nodeIds.length ||
         !header.nodePositionsM.every(position =>
             Array.isArray(position) && position.length === 3 && position.every(Number.isFinite)) ||
@@ -110,10 +128,24 @@ export function parseWinchResult(buffer: ArrayBuffer): WinchResult {
         !Array.isArray(header.fixedNodeIds) || !header.fixedNodeIds.every(Number.isInteger) ||
         !Array.isArray(header.ropeElements) ||
         !header.ropeElements.every(element =>
-            Number.isInteger(element.componentId) && Number.isInteger(element.elementId) &&
+            element && Number.isInteger(element.componentId) && Number.isInteger(element.elementId) &&
             typeof element.componentName === 'string') ||
-        !Array.isArray(header.winches) || header.winches.length !== 2) {
+        !Array.isArray(header.winches) || header.winches.length !== 2 ||
+        !header.winches.every(winch => winch && typeof winch.name === 'string' &&
+            Number.isInteger(winch.componentId) && Array.isArray(winch.topNodeIds) &&
+            winch.topNodeIds.every(Number.isInteger))) {
         throw new Error('The result is missing its node IDs, fixed-node constraints, or two winch records.');
+    }
+    const knownIds = new Set(header.nodeIds);
+    if ([...header.fixedNodeIds, ...header.surfaceNodeIds, ...header.winches.flatMap(w => w.topNodeIds)]
+        .some(id => !knownIds.has(id)) || new Set(header.fixedNodeIds).size !== header.fixedNodeIds.length ||
+        new Set(header.ropeElements.map(e => `${e.componentId}:${e.elementId}`)).size !== header.ropeElements.length) {
+        throw new Error('The result contains duplicate or unknown node/element IDs.');
+    }
+    if (!header.settings || !Number.isFinite(header.settings.takeUpSpeedMPerMin) ||
+        !Array.isArray(header.warnings) || !header.warnings.every(value => typeof value === 'string') ||
+        !Array.isArray(header.assumptions) || !header.assumptions.every(value => typeof value === 'string')) {
+        throw new Error('The result contains invalid settings, warnings, or assumptions.');
     }
     const expectedFrameBytes = FRAME_SUMMARY_BYTES +
         header.nodeIds.length * NODE_POSITION_BYTES +
@@ -134,6 +166,9 @@ export function parseWinchResult(buffer: ArrayBuffer): WinchResult {
         const frameOffset = dataOffset + index * expectedFrameBytes;
         const values = fields.map((_, field) => view.getFloat64(frameOffset + field * 8, true));
         if (!values.every(Number.isFinite)) throw new Error(`Frame ${index} contains a non-finite value.`);
+        if (values[0] < 0 || (index > 0 && values[0] <= frames[index - 1].timeS)) {
+            throw new Error('Result frame times must be nonnegative and strictly increasing.');
+        }
         let cursor = frameOffset + FRAME_SUMMARY_BYTES;
         for (let value = 0; value < nodeValueCount; value++) {
             const nodeValue = view.getFloat32(cursor, true);

@@ -3,7 +3,7 @@ import type { AquaSimModel } from '@/parser/types';
 
 export interface FileLoaderCallbacks {
     onLoadStart?: (filename: string) => void;
-    onLoadSuccess: (model: AquaSimModel, filename: string) => void;
+    onLoadSuccess: (model: AquaSimModel, filename: string, file: File) => void;
     onLoadError: (error: Error, filename: string) => void;
 }
 
@@ -37,7 +37,7 @@ export function setupFileLoader(
                     throw new Error('File content is empty.');
                 }
                 const model = parseAmodelXml(text);
-                callbacks.onLoadSuccess(model, file.name);
+                callbacks.onLoadSuccess(model, file.name, file);
             } catch (err) {
                 callbacks.onLoadError(err instanceof Error ? err : new Error(String(err)), file.name);
             }
