@@ -55,7 +55,7 @@ class EquilibriumSystem:
                 pattern[b,a] = 1
         self.sparsity = pattern.tocsr()
         self.edge_arrays = {key: np.asarray([e[key] for e in model.edges]) for key in
-                            ('a','b','length','ea','fraction','air','water','tensionOnly')}
+                            ('a','b','length','ea','fraction','air','water','tensionOnly','winch')}
 
     def positions(self, x):
         pos = self.model.positions.copy()
@@ -77,7 +77,8 @@ class EquilibriumSystem:
         a, b = e['a'].astype(int), e['b'].astype(int)
         delta = pos[b]-pos[a]
         lengths = np.linalg.norm(delta,axis=1)
-        rest = e['length']+payout*e['fraction']
+        payouts = np.broadcast_to(np.asarray(payout,dtype=float), (len(model.metadata['winches']),))
+        rest = e['length']+payouts[np.maximum(e['winch'].astype(int),0)]*e['fraction']
         if np.any(rest <= 1e-6):
             raise ValueError('Retrieval exceeds available unstretched cable length.')
         extension = lengths-rest
@@ -197,4 +198,4 @@ class EquilibriumSystem:
                     seed,last = probe,state
                     continue
             seed, last = result.x,state
-        raise EquilibriumError(f'Equilibrium failed at payout {payout:.8g} m: {metrics}')
+        raise EquilibriumError(f'Equilibrium failed at payout {np.asarray(payout).tolist()} m: {metrics}')

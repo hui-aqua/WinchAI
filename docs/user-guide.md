@@ -32,20 +32,38 @@ The sidebar starts collapsed on narrow screens.
 Install dependencies with `python -m pip install -r requirements.txt` and
 `npm ci`, then start the integrated local GUI and solver API from the
 repository root with `npm run winch`. Open `http://127.0.0.1:8765/`, load an
-`.amodel`, and click **Winch Simulation**.
+`.amodel`. Properties are read immediately when the model is imported.
+Click **Component Properties** to review or edit them, then click **Winch Simulation**
+to configure the winches and timing.
 
-Set the cable change (positive lowers, negative retrieves) and initial cable-length increment. The
-increment defaults to 50 mm. The quasi-static solver adapts this step size near
-free-surface crossings, cable slack/taut transitions, constraint changes, and
-failed equilibrium solves. Accepted equilibrium states are warm-started from
-the previous state. Force/tension, displacement, buoyancy, and constraint
-convergence are checked separately; failed solves are retried at a smaller
-increment or reported as failures.
+The **Component Properties** dialog displays the imported component table. Edit
+cable/net EA (N), total unstretched segment length (m), mass (kg), weight in
+air (N/m), and fully submerged weight in water (N/m). Total air and submerged
+weights (N) are calculated from length, with subtotals by component type and
+a grand total. Mass and weights display no decimals; lengths display two.
+Unedited source values retain their original precision. Mass and air weight are
+linked by W = mass × 9.80665. Negative water weight represents net buoyancy.
+Beam geometry and EA are read-only because beams are rigid in this solver;
+their mass and water weight remain editable. Edits are retained for the loaded model and subsequent simulations; they do
+not rewrite the source model. A component length edit scales its reference
+segments uniformly; mass is a component total; air and water weights are specified per metre.
 
-The solver is not tied to real elapsed time. The result timeline represents
-the sequence of solved payout states. Use play/pause, the timeline, and speed
-selector to inspect structural positions and cable tension colouring. Playback
-speed affects presentation only and does not alter the equilibrium solution.
+In the winch table, **Specified payout** is the change in unstretched wire
+length over the simulation duration: positive pays out, negative hauls in,
+and zero holds length constant. Each winch has an independent value. If a
+winch has multiple wire paths, the specified change applies to each path.
+The constant rate is payout / duration and is shown in m/s. Set the duration
+in seconds and **Save ΔT** in seconds. Initial and final states are always
+saved; intermediate states are solved exactly at the requested save times.
+
+The initial cable increment defaults to 50 mm under equilibrium step settings.
+The solver reduces internal steps near surface crossings, slack/taut changes,
+and failed equilibrium solves. Save ΔT controls output sampling independently
+of these internal steps. Each saved state must satisfy the equilibrium checks.
+Zero-payout runs retain the same validated equilibrium for the full duration.
+The timeline represents the specified winch schedule; inertia is omitted.
+Playback speed changes presentation only. Use play/pause, the timeline, and
+speed selector to inspect positions and cable tension colouring.
 The model is sent only to the loopback Python process, used temporarily, and
 not sent to a remote server. The GitHub Pages viewer is static and cannot run
 local Python calculations.
@@ -72,3 +90,24 @@ are skipped and reported as warnings.
 Unpack the standalone release ZIP and serve the directory over HTTP with a
 local server. For example, run `python -m http.server` in that directory
 and open `http://localhost:8000/`.
+
+## Run diagnostics
+
+Every Run simulation attempt saves its settings and diagnostics in browser
+local storage. Use **Download run diagnostics** to export the last attempt,
+including network errors, HTTP status, model filename, component properties,
+controls and any server run ID. No source XML is stored in browser diagnostics.
+The next attempt replaces the browser's previous report.
+
+The local Python server saves each received simulation request under
+`simulation_results/runs/<run-id>/`: `input.amodel`, `settings.json`,
+`request.body`, `diagnostics.json`, `stdout.log`, `stderr.log`, and
+`traceback.log` for unexpected server errors. Validation failures may have only
+the request and diagnostic report. These files stay locally and are ignored
+by Git. They remain available after failed runs.
+
+“Failed to fetch” means no readable API response reached the browser. Start
+`npm run winch` and use `http://127.0.0.1:8765/`. With `npm run dev`, start
+`python -m simulation.local_server --api-only` separately. A static viewer
+has no Python solver. Check the server terminal if the connection drops during
+a run; the retained reports show the last recorded stage and Python errors.

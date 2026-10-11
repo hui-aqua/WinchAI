@@ -117,11 +117,15 @@ npm ci
 npm run winch
 ```
 
-Open `http://127.0.0.1:8765/`, load an `.amodel`, then set signed cable change (positive lowers, negative retrieves) and
-the initial cable increment in **Winch Simulation**. The initial increment
-is 50 mm by default and is adjusted around difficult transitions. The solver
-finds equilibria rather than integrating physical time. Successful states
-load into playback automatically. Each run uses a temporary local model/result;
+Open `http://127.0.0.1:8765/` and load an `.amodel`; properties load on import.
+Click **Component Properties** to review or edit EA, unstretched length, mass,
+and air/water weights. Edits persist for this model. Then click **Winch Simulation**.
+Set each winch's **Specified payout** (positive pays out, negative hauls in,
+zero holds), simulation duration, and save ΔT. Rate equals payout / duration.
+Rigid beam length and EA are read-only. The adaptive internal cable increment
+defaults to 50 mm; output is saved at the requested time interval, including
+the initial and final equilibria. Successful results load into playback.
+Each run uses a temporary local model/result;
 the uploaded file is not retained by the local service. The local API accepts
 loopback requests only, permits one simulation at a time, and limits playback
 results to 128 MiB. Only accepted equilibrium states are emitted; the API limits results to 128 MiB.

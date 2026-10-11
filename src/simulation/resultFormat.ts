@@ -1,3 +1,5 @@
+import type { ComponentProperties } from './controls';
+
 export interface WinchResultHeader {
     schema: 'aquasim-winch-result';
     version: 2;
@@ -17,6 +19,7 @@ export interface WinchResultHeader {
         internalSteps: number;
         waterDensityKgM3: number;
         payoutM?: number;
+        winchPayoutsM?: Record<string, number>;
         initialIncrementM?: number;
         minimumIncrementM?: number;
         acceptedSteps?: number;
@@ -37,6 +40,7 @@ export interface WinchResultHeader {
         incrementM?: number;
         event?: boolean;
     }>;
+    componentProperties?: ComponentProperties[];
     beamLoads: Array<{
         componentId: number;
         name: string;

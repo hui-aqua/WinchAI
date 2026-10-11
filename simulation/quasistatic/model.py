@@ -55,6 +55,8 @@ def load_model(path: Path, density=1025.0, include_membrane=True):
         raise ValueError(f"Cannot read AquaSim model {path}: {error}") from error
     data = _read_model(path, density, root=root)
     components = root.find('Components')
+    data['components'] = [dict(componentId=int(c.get('id')), name=c.get('name', c.tag), type=c.tag)
+                          for c in components if c.tag in {'beam','truss','membrane'}]
     index = {n: i for i, n in enumerate(data['nodeIds'])}
     pos = np.asarray(data['nodePositionsM'], dtype=float)
     fixed_ids = set(data['fixedNodeIds'])
@@ -74,7 +76,7 @@ def load_model(path: Path, density=1025.0, include_membrane=True):
             if length <= 0:
                 raise ValueError('Zero-length beam element.')
             beams.append(dict(a=a, b=b, length=length, radius=radius,
-                              mass=props['massPerMkg']*length,
+                              componentId=int(comp.get('id')), mass=props['massPerMkg']*length,
                               buoyancy=(props['massPerMkg']-props['submergedMassPerMkg'])*length*GRAVITY_M_S2))
     bodies, owner = [], np.full(len(pos), -1, dtype=int)
     for group in connected_groups(beams):
@@ -153,7 +155,8 @@ def load_model(path: Path, density=1025.0, include_membrane=True):
                         if length <= 1e-9:
                             raise ValueError('Zero-length net edge.')
                         edges.append(dict(a=a,b=b,length=length,ea=ea,air=rho*area,water=(rho-density)*area,
-                                          tensionOnly=True,winch=-1,fraction=0.0,output=False))
+                                          tensionOnly=True,winch=-1,fraction=0.0,output=False,
+                                          componentId=int(comp.get('id')),componentName=comp.get('name','')))
         data['warnings'].append('Netting uses tension-only axial edges and quad diagonals; mesh homogenization, shell bending and hydrodynamic loads are not represented.')
     active = set(n for e in edges+beams for n in (e['a'],e['b']))
     forces, moments = np.zeros_like(pos), np.zeros_like(pos)

@@ -79,7 +79,7 @@ describe('application UI wiring', () => {
         expect(toggle.getAttribute('aria-expanded')).toBe('false');
         expect(document.getElementById('btn-run-winch-simulation')).not.toBeNull();
         expect(document.getElementById('simulation-status')).not.toBeNull();
-        expect(document.getElementById('simulation-force-plot')).not.toBeNull();
+        expect(document.getElementById('simulation-force-plot')).toBeNull();
         toggle.click();
         expect(controls.hidden).toBe(false);
         expect(toggle.getAttribute('aria-expanded')).toBe('true');

@@ -28,6 +28,7 @@ def encode_result(model_data: dict[str, Any], equilibrium: dict[str, Any]) -> by
         "frameCount": frame_count,
         "frameRecordBytes": frame_record_bytes,
         "settings": {**equilibrium["settings"], "waterDensityKgM3": model_data["waterDensityKgM3"]},
+        "componentProperties": model_data.get("componentProperties", []),
         "beamLoads": model_data["beamLoads"],
         "winches": model_data["winches"],
         "centerOfMassM": model_data["centerOfMassM"],

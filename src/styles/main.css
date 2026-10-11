@@ -580,7 +580,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
     right: 14px;
     bottom: 14px;
     z-index: 20;
-    max-height: 40%;
+    max-height: min(160px, 25%);
     overflow-y: auto;
     padding: 6px 8px;
     border: 1px solid var(--border-color);
@@ -685,7 +685,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 }
 
 .simulation-timeline-row {
-    margin-top: 8px;
+    margin-top: 4px;
 }
 
 #simulation-timeline {
@@ -703,7 +703,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 }
 
 @media (max-width: 760px) {
-    .simulation-panel { left: 8px; right: 8px; bottom: 8px; max-height: 48%; }
+    .simulation-panel { left: 8px; right: 8px; bottom: 8px; max-height: min(180px, 30%); }
     .simulation-toolbar { align-items: flex-start; flex-direction: column; }
     .simulation-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
     #simulation-time { min-width: 0; max-width: 50%; font-size: 9px; }
@@ -734,7 +734,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 .simulation-actions { flex-wrap: wrap; }
 .simulation-panel .btn, .simulation-panel .select-mode { min-height: 28px; height: 28px; padding: 3px 8px; }
 
-/* Retained equilibrium plots and diagnostics in the collapsible panel. */
+/* Compact playback status and diagnostics. */
 .simulation-title {
     display: flex;
     flex-direction: column;
@@ -749,37 +749,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
     white-space: nowrap;
 }
 
-.simulation-plot-legend {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 12px;
-    color: var(--text-secondary);
-    font-size: 9px;
-}
-
-.legend-win {
-    display: inline-block;
-    width: 9px;
-    height: 3px;
-    margin-right: 4px;
-    vertical-align: middle;
-    background: #38bdf8;
-}
-
-.legend-win.ch2 { background: #f59e0b; }
-
-.legend-win.net-load { background: #34d399; }
-
-.simulation-force-plot {
-    display: block;
-    width: 100%;
-    height: 92px;
-}
-
 .simulation-warnings {
-    max-height: 90px;
+    max-height: 40px;
     overflow-y: auto;
     padding: 6px 8px 0 22px;
     border-top: 1px solid var(--border-color);
@@ -790,3 +761,30 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 .simulation-warnings li + li {
     margin-top: 3px;
 }
+
+/* Parameter review and constant-rate winch controls. */
+.winch-simulation-dialog { width: min(1120px, calc(100vw - 32px)); max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow-y: auto; }
+.winch-simulation-dialog h3 { margin: 12px 0 0; font-size: 14px; color: var(--text-primary); }
+.winch-table-scroll { min-width: 0; border: 1px solid var(--border-color); border-radius: 6px; }
+.winch-properties-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.winch-properties-table th, .winch-properties-table td { padding: 5px 4px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; overflow-wrap: anywhere; }
+.winch-properties-table th { color: var(--text-secondary); white-space: normal; background: var(--bg-tertiary); }
+.winch-properties-table input { width: 100%; min-width: 0; max-width: 100%; min-height: 30px; padding: 4px 3px; font-family: var(--font-mono); font-size: 12px; }
+.winch-properties-table input:read-only { opacity: .65; background: var(--bg-tertiary); }
+.winch-properties-table td:first-child { min-width: 0; }
+.winch-timing-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.winch-timing-fields label { display: flex; flex-direction: column; gap: 6px; }
+.winch-step-settings summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; }
+.winch-step-settings[open] { display: block; }
+.winch-step-settings input { max-width: 160px; margin: 8px 0; }
+.winch-dialog-actions { position: sticky; bottom: -16px; padding: 12px 0; background: var(--bg-secondary); }
+
+.winch-weight-summary td { font-weight: 600; background: var(--bg-primary); border-top: 1px solid var(--border-hover); }
+
+@media (max-width: 800px) {
+    .winch-properties-table, .winch-properties-table input { font-size: 11px; }
+    .winch-properties-table th, .winch-properties-table td { padding: 4px 2px; }
+    .winch-simulation-dialog { padding: 12px; }
+}
+
+.winch-run-status { white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { findPlaybackInterval, playbackTimeFraction } from '@/simulation/playbackMath';
+import { findPlaybackInterval } from '@/simulation/playbackMath';
 import type { AquaSimModel } from '@/parser/types';
 import { assertResultMatchesModel, parseWinchResult, type WinchResult, type WinchResultFrame } from '@/simulation/resultFormat';
 import type { AquaSimViewer } from '@/viewer/AquaSimViewer';
@@ -15,8 +15,6 @@ export function setupSimulationPlayback(
     const timeLabel = document.getElementById('simulation-time') as HTMLElement;
     const speedSelect = document.getElementById('simulation-speed') as HTMLSelectElement;
     const status = document.getElementById('simulation-status') as HTMLElement;
-    const plot = document.getElementById('simulation-force-plot') as HTMLCanvasElement;
-    const plotLegend = document.getElementById('simulation-plot-legend') as HTMLElement;
     const warnings = document.getElementById('simulation-warnings') as HTMLElement;
 
     const panel = document.getElementById('simulation-panel') as HTMLElement;
@@ -28,14 +26,12 @@ export function setupSimulationPlayback(
         panel.classList.toggle('is-collapsed', collapsed);
         toggleButton.textContent = collapsed ? 'Show winch simulation' : 'Hide';
         toggleButton.setAttribute('aria-expanded', String(!collapsed));
-        if (!collapsed) drawPlot(playbackTimeS);
     });
 
     let result: WinchResult | null = null;
     let currentIndex = 0;
     let playbackTimeS = 0;
     let maximumResultTensionN = 0;
-    let maximumPlotForceN = 1;
     let animationFrame: number | null = null;
     let lastTick = 0;
 
@@ -43,62 +39,6 @@ export function setupSimulationPlayback(
         const minutes = Math.floor(seconds / 60);
         const remainder = Math.floor(seconds % 60);
         return `${minutes}:${String(remainder).padStart(2, '0')}`;
-    }
-
-    function drawPlot(timeS: number): void {
-        const context = plot.getContext('2d');
-        if (!context) return;
-        const width = plot.clientWidth || 500;
-        const height = plot.clientHeight || 115;
-        const pixelRatio = window.devicePixelRatio || 1;
-        plot.width = Math.round(width * pixelRatio);
-        plot.height = Math.round(height * pixelRatio);
-        context.scale(pixelRatio, pixelRatio);
-        context.clearRect(0, 0, width, height);
-        if (!result) return;
-
-        const margin = { left: 54, right: 10, top: 8, bottom: 20 };
-        const chartWidth = width - margin.left - margin.right;
-        const chartHeight = height - margin.top - margin.bottom;
-        const maximum = maximumPlotForceN;
-        context.font = '10px ui-monospace, monospace';
-        context.strokeStyle = '#475569';
-        context.fillStyle = '#94a3b8';
-        context.lineWidth = 1;
-        for (let tick = 0; tick <= 2; tick++) {
-            const y = margin.top + chartHeight * tick / 2;
-            context.beginPath();
-            context.moveTo(margin.left, y);
-            context.lineTo(width - margin.right, y);
-            context.stroke();
-            context.fillText(`${Math.round(maximum * (1 - tick / 2))}`, 2, y + 3);
-        }
-
-        const series: Array<{ key: keyof WinchResultFrame; color: string }> = [
-            { key: 'winch1TensionN', color: '#38bdf8' },
-            { key: 'winch2TensionN', color: '#f59e0b' },
-            { key: 'netVerticalLoadN', color: '#34d399' }
-        ];
-        for (const line of series) {
-            context.beginPath();
-            context.strokeStyle = line.color;
-            context.lineWidth = 1.7;
-            result.frames.forEach((frame, index) => {
-                const x = margin.left + chartWidth * playbackTimeFraction(result!.frames, frame.timeS);
-                const y = margin.top + chartHeight * (1 - Math.min(maximum, Math.abs(frame[line.key] as number)) / maximum);
-                if (index === 0) context.moveTo(x, y);
-                else context.lineTo(x, y);
-            });
-            context.stroke();
-        }
-
-        const cursorX = margin.left + chartWidth * playbackTimeFraction(result.frames, timeS);
-        context.beginPath();
-        context.strokeStyle = '#f8fafc';
-        context.lineWidth = 1;
-        context.moveTo(cursorX, margin.top);
-        context.lineTo(cursorX, margin.top + chartHeight);
-        context.stroke();
     }
 
     function renderAtTime(timeS: number): void {
@@ -141,8 +81,12 @@ export function setupSimulationPlayback(
         });
         viewer.applyWinchFrame(nodePositions, tensionByElement, maximumResultTensionN);
         timeline.value = String(currentIndex);
-        timeLabel.textContent = `${formatTime(playbackTimeS)} / ${formatTime(finalFrame.timeS)} · ${frame.takeUpM >= 0 ? 'retrieved' : 'paid out'} ${Math.abs(frame.takeUpM).toFixed(2)} m · mean vertical movement ${frame.translationZM.toFixed(2)} m`;
-        drawPlot(playbackTimeS);
+        const schedule = result.header.settings.winchPayoutsM;
+        const progress = finalFrame.timeS > 0 ? playbackTimeS / finalFrame.timeS : 0;
+        const payoutLabel = schedule
+            ? result.header.winches.map(winch => `${winch.name}: ${((schedule[String(winch.componentId)] ?? 0) * progress).toFixed(2)} m payout`).join(' · ')
+            : `${frame.takeUpM >= 0 ? 'retrieved' : 'paid out'} ${Math.abs(frame.takeUpM).toFixed(2)} m`;
+        timeLabel.textContent = `${formatTime(playbackTimeS)} / ${formatTime(finalFrame.timeS)} · ${payoutLabel} · mean vertical movement ${frame.translationZM.toFixed(2)} m`;
     }
 
     function applyFrame(index: number): void {
@@ -196,9 +140,7 @@ export function setupSimulationPlayback(
             currentIndex = 0;
             playbackTimeS = 0;
             maximumResultTensionN = 0;
-            maximumPlotForceN = 1;
             for (const frame of parsed.frames) {
-                maximumPlotForceN = Math.max(maximumPlotForceN, frame.winch1TensionN, frame.winch2TensionN, Math.abs(frame.netVerticalLoadN));
                 for (const tension of frame.ropeTensionsN) {
                     maximumResultTensionN = Math.max(maximumResultTensionN, tension);
                 }
@@ -221,7 +163,6 @@ export function setupSimulationPlayback(
                 warnings.append(item);
             }
             warnings.hidden = warnings.childElementCount === 0;
-            plotLegend.hidden = false;
             applyFrame(0);
         } catch (error) {
             result = null;
@@ -231,8 +172,6 @@ export function setupSimulationPlayback(
             playButton.disabled = true;
             warnings.replaceChildren();
             warnings.hidden = true;
-            plotLegend.hidden = true;
-            drawPlot(0);
             throw error;
         }
     }
@@ -253,7 +192,6 @@ export function setupSimulationPlayback(
         animationFrame = requestAnimationFrame(tick);
     });
 
-    window.addEventListener('resize', () => drawPlot(playbackTimeS));
 
     return {
         loadResult,
@@ -268,8 +206,6 @@ export function setupSimulationPlayback(
             status.textContent = `Loaded ${model.name || 'AquaSim Model'}. Run the local solver, then open its .aqwr result.`;
             warnings.replaceChildren();
             warnings.hidden = true;
-            plotLegend.hidden = true;
-            drawPlot(0);
         }
     };
 }
