@@ -54,11 +54,19 @@ and zero holds length constant. Each winch has an independent value. If a
 winch has multiple wire paths, the specified change applies to each path.
 The constant rate is payout / duration and is shown in m/s. Set the duration
 in seconds and **Save ΔT** in seconds. Initial and final states are always
-saved; intermediate states are solved exactly at the requested save times.
+saved; intermediate states are sampled from the equilibrium database at the requested save times.
+
+Choose **Implicit time marching (quasi-static)** to solve each successive time
+using the previous equilibrium, or **Parallel quasi-static equilibrium** to
+precompute independent rope-length states. Parallel is the default. Both use
+the same gravity, buoyancy, elastic tension and structural constraints, and
+both omit inertia. The selected solver is retained in run diagnostics and
+shown in playback.
 
 The initial cable increment defaults to 50 mm under equilibrium step settings.
-The solver reduces internal steps near surface crossings, slack/taut changes,
-and failed equilibrium solves. Save ΔT controls output sampling independently
+The parallel solver samples independent rope-length states using parallel CPU workers,
+repairs failed or discontinuous states from neighboring solutions, and refines
+the database near surface crossings, slack/taut changes and rapid responses. Save ΔT controls output sampling independently
 of these internal steps. Each saved state must satisfy the equilibrium checks.
 Zero-payout runs retain the same validated equilibrium for the full duration.
 The timeline represents the specified winch schedule; inertia is omitted.

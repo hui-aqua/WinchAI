@@ -208,6 +208,7 @@ export function setupWinchSimulation(playback: SimulationPlayback): { setModelFi
             }),
             winches: properties.winches.map(winch => ({ componentId: winch.componentId, payoutM: value(winch.componentId, 'payoutM') })),
             durationSeconds: Number(duration.value), saveIntervalSeconds: Number(interval.value),
+            solverStrategy: element<HTMLSelectElement>('winch-solver').value as SimulationControls['solverStrategy'],
             initialIncrementM: Number(element<HTMLInputElement>('winch-increment').value) / 1000
         };
         diagnostic = null;
@@ -217,8 +218,10 @@ export function setupWinchSimulation(playback: SimulationPlayback): { setModelFi
             userAgent: navigator.userAgent });
         const current = revision; const sourceXml = modelXml;
         running = true; propertiesButton.disabled = true; runButton.disabled = true; submit.disabled = true; cancel.disabled = true; reset.disabled = true;
-        const fields = [...form.querySelectorAll<HTMLInputElement>('input')]; fields.forEach(field => { field.disabled = true; });
-        status.textContent = 'Solving quasi-static equilibrium states locally. Keep this window open.';
+        const fields = [...form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')]; fields.forEach(field => { field.disabled = true; });
+        status.textContent = controls.solverStrategy === 'time-marching'
+            ? 'Solving implicit time marching locally. Keep this window open.'
+            : 'Solving parallel quasi-static equilibrium states locally. Keep this window open.';
         void (async () => {
             try {
                 const requestXml = sourceXml;

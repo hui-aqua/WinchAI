@@ -185,6 +185,12 @@
                     <form id="winch-simulation-form">
                         <h2 id="winch-dialog-title">Winch Simulation</h2>
                         <p id="winch-model-name" class="winch-model-name"></p>
+                        <label for="winch-solver">Solver</label>
+                        <select id="winch-solver" name="solverStrategy">
+                            <option value="time-marching">Implicit time marching (quasi-static)</option>
+                            <option value="parallel-rope-length" selected>Parallel quasi-static equilibrium</option>
+                        </select>
+                        <p class="winch-simulation-notice">Time marching solves each new state from the previous equilibrium. Parallel solving precomputes independent rope-length states using CPU workers. Both include gravity, buoyancy, elastic tension and structural constraints.</p>
                         <h3>Winch control</h3>
                         <p class="winch-simulation-notice">Specified payout changes the unstretched wire length at a constant rate over the simulation duration: positive pays out, negative hauls in, and zero holds length. For parallel wires, the specified change applies to each connected wire path.</p>
                         <div class="winch-table-scroll">

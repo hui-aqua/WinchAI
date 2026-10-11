@@ -14,13 +14,14 @@ def run(model_path: Path, output_path: Path, water_density: float = 1025.0,
         speed_m_per_min: float = 1.0, time_step_s: float = 3.0,
         min_increment_m: float = 1e-4, max_steps: int = 100000,
         include_membrane: bool = True, tolerances=None, *, controls=None,
-        duration_seconds=None, save_interval_seconds=None, max_result_bytes=None) -> None:
+        duration_seconds=None, save_interval_seconds=None, max_result_bytes=None,
+        workers=None, velocity_profile=None, solver_strategy='parallel-rope-length') -> None:
     from .quasistatic import simulate, Tolerances
     options = dict(initial_increment_m=initial_increment_m,duration_seconds=duration_seconds,
-                   save_interval_seconds=save_interval_seconds)
+                   save_interval_seconds=save_interval_seconds,workers=workers,velocity_profile=velocity_profile,solver_strategy=solver_strategy)
     if controls is not None:
         from .controls import parse_controls
-        options.update(parse_controls(controls))
+        options.update({key:value for key,value in parse_controls(controls).items() if value is not None})
     metadata, equilibrium = simulate(
         model_path,payout_m=payout_m,water_density=water_density,
         speed_m_per_min=speed_m_per_min,time_step_s=time_step_s,
@@ -34,7 +35,7 @@ def run(model_path: Path, output_path: Path, water_density: float = 1025.0,
     output_path.write_bytes(result)
     settings = equilibrium['settings']
     print(f"Wrote {len(result):,} bytes to {output_path}")
-    print(f"Quasi-static: {settings['acceptedSteps']} accepted steps, "
+    print(f"Quasi-static ({settings['equilibriumStrategy']}): {settings['acceptedSteps']} accepted steps, "
           f"{settings['rejectedSteps']} retries; winch payouts {settings['winchPayoutsM']} m.")
     for warning in equilibrium['warnings']:
         print(f"WARNING: {warning}", file=sys.stderr)
@@ -51,6 +52,9 @@ def main() -> int:
     parser.add_argument('--minimum-increment-mm', type=float, default=0.1)
     parser.add_argument('--speed-m-per-min', type=float, default=1.0)
     parser.add_argument('--time-step-seconds', type=float, default=3.0)
+    parser.add_argument('--solver', choices=('time-marching','parallel-rope-length'),
+                        default='parallel-rope-length', help='Sequential implicit equilibrium marching or parallel rope-length equilibria.')
+    parser.add_argument('--parallel-workers', type=int, help='CPU workers for independent rope-length states.')
     parser.add_argument('--max-steps', type=int, default=100000)
     parser.add_argument('--max-evaluations', type=int, default=300)
     parser.add_argument('--force-tolerance-n', type=float, default=1.0)
@@ -74,7 +78,7 @@ def main() -> int:
                        args.displacement_tolerance_m,args.tension_tolerance_n,
                        args.buoyancy_tolerance_n,args.constraint_tolerance_m,args.max_evaluations),
             controls=controls,duration_seconds=args.duration_seconds,
-            save_interval_seconds=args.save_interval_seconds,max_result_bytes=args.max_result_bytes)
+            save_interval_seconds=args.save_interval_seconds,max_result_bytes=args.max_result_bytes,workers=args.parallel_workers,solver_strategy=args.solver)
     except (ValueError,OSError,RuntimeError) as error:
         parser.error(str(error))
     return 0

@@ -40,6 +40,7 @@ def encode_result(model_data: dict[str, Any], equilibrium: dict[str, Any]) -> by
         "warnings": equilibrium["warnings"],
         "assumptions": model_data["assumptions"],
         "convergence": equilibrium.get("convergence", []),
+        "equilibriumDatabase": equilibrium.get("equilibriumDatabase"),
     }
     header_bytes = json.dumps(header, separators=(",", ":"), allow_nan=False).encode("utf-8")
     result = bytearray(MAGIC + struct.pack("<HI", VERSION, len(header_bytes)) + header_bytes)

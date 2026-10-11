@@ -33,4 +33,8 @@ export interface SimulationControls {
     durationSeconds: number;
     saveIntervalSeconds: number;
     initialIncrementM: number;
+    solverStrategy?: 'time-marching' | 'parallel-rope-length';
+    parallelWorkers?: number;
+    /** Signed velocity along the coordinated payout path; permits pauses and reversals. */
+    velocityProfile?: Array<{ timeS: number; velocityMPerS: number }>;
 }

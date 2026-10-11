@@ -1,16 +1,21 @@
-"""Constant-rate winch schedules, adaptive equilibrium steps and timed output."""
+"""Parallel rope-length equilibria mapped onto timed playback."""
 import math
 import numpy as np
 from .model import load_model
 from .properties import apply_component_overrides
 from .equilibrium import EquilibriumSystem, EquilibriumError, Tolerances
+from .database import EquilibriumDatabase
+from .schedule import VelocitySchedule
+from .time_marching import TimeMarchingSolver
 
 
 def simulate(model_path, payout_m=1.0, initial_increment_m=0.05, water_density=1025.0,
              speed_m_per_min=1.0, time_step_s=3.0, min_increment_m=1e-4,
              max_steps=100000, include_membrane=True, tolerances=Tolerances(), *,
              component_overrides=None, winch_payouts=None, duration_seconds=None,
-             save_interval_seconds=None, max_result_bytes=None):
+             save_interval_seconds=None, max_result_bytes=None, workers=None, velocity_profile=None, solver_strategy='parallel-rope-length'):
+    if solver_strategy not in ('time-marching', 'parallel-rope-length'):
+        raise ValueError('Solver strategy must be time-marching or parallel-rope-length.')
     for name,value in [('payout',payout_m),('initial increment',initial_increment_m),
                        ('water density',water_density),('speed',speed_m_per_min),
                        ('time step',time_step_s),('minimum increment',min_increment_m)]:
@@ -27,6 +32,8 @@ def simulate(model_path, payout_m=1.0, initial_increment_m=0.05, water_density=1
             raise ValueError(f'{name} must be finite and positive.')
     if max_result_bytes is not None and (not isinstance(max_result_bytes,int) or max_result_bytes <= 0):
         raise ValueError('Result byte limit must be a positive integer.')
+    if workers is not None and (isinstance(workers,bool) or not isinstance(workers,int) or workers < 1):
+        raise ValueError('Worker count must be a positive integer.')
     model = load_model(model_path,water_density,include_membrane)
     apply_component_overrides(model,component_overrides)
     winch_ids = [w['componentId'] for w in model.metadata['winches']]
@@ -41,6 +48,7 @@ def simulate(model_path, payout_m=1.0, initial_increment_m=0.05, water_density=1
         payouts = np.asarray(values,dtype=float)
     travel = float(np.max(np.abs(payouts),initial=0))
     duration = duration_seconds if duration_seconds is not None else travel*60/speed_m_per_min
+    schedule = VelocitySchedule(duration, travel, velocity_profile)
     system = EquilibriumSystem(model,tolerances)
     # Reject invalid cable lengths before starting any equilibrium solves.
     system.evaluate(system.x0,payouts)
@@ -64,7 +72,7 @@ def simulate(model_path, payout_m=1.0, initial_increment_m=0.05, water_density=1
     def record(time,state,metric):
         if max_result_bytes is not None and (len(convergence)+1)*frame_bytes > max_result_bytes:
             raise ValueError('Saved frames exceed the result limit. Increase save ΔT.')
-        progress = time/duration if duration > 0 else 0.0
+        progress = schedule.at(time)
         metric = dict(metric,timeS=time,payoutM=float(np.mean(payouts)*progress),
                       winchPayoutsM=(payouts*progress).tolist())
         frames['timeS'].append(time)
@@ -77,58 +85,38 @@ def simulate(model_path, payout_m=1.0, initial_increment_m=0.05, water_density=1
         frames['momentsNm'].append(state['moment'])
         convergence.append(metric)
 
-    x,state,metric = system.solve(np.zeros(len(winch_ids)))
-    metric.update(incrementM=0.0,event=False)
-    record(0.0,state,metric)
-    # Cable increments cap the fastest winch; all winches share elapsed time.
-    speed = travel/duration if duration > 0 else 0.0
-    limit = min(time_step_s,initial_increment_m/speed) if speed > 0 else time_step_s
-    minimum_step = min_increment_m/speed if speed > 0 else limit
-    step,current,attempts,retries,events,accepted = limit,0.0,0,0,0,0
-    save_number = 1
-    while current < duration:
-        if attempts >= max_steps:
-            raise EquilibriumError('Adaptive continuation exceeded maximum trial steps; no result was written.')
-        deadline = min(duration,save_number*save_interval_seconds) if save_interval_seconds is not None else duration
-        # Constant-length runs can reuse a validated equilibrium at save times.
-        target = deadline if travel == 0 else min(current+step,deadline,duration)
-        if target <= current:
-            raise ValueError('The requested time increment is too small to advance simulation time.')
-        trial_step = target-current
-        attempts += 1
-        try:
-            if travel == 0:
-                candidate_x,candidate,candidate_metric = x,state,dict(metric)
-            else:
-                candidate_x,candidate,candidate_metric = system.solve(payouts*(target/duration),x)
-            crossing = np.any((state['positions'][:,2] < 0) != (candidate['positions'][:,2] < 0))
-            active_change = np.any(state['active'] != candidate['active'])
-            surface_change = abs(candidate['buoyancy']-state['buoyancy']) > max(10.0,0.01*abs(state['buoyancy']))
-            event = bool(crossing or active_change or surface_change)
-            if event and trial_step > minimum_step*(1+1e-9):
-                step = max(minimum_step,trial_step/2)
-                retries += 1
-                continue
-        except EquilibriumError:
-            if trial_step <= minimum_step*(1+1e-9):
-                raise
-            step = max(minimum_step,trial_step/2)
-            retries += 1
-            continue
-        current,x,state,metric = target,candidate_x,candidate,candidate_metric
-        metric = dict(metric,incrementM=trial_step*speed,event=event)
-        accepted += 1
-        if save_interval_seconds is None or current == deadline:
-            record(current,state,metric)
-            if save_interval_seconds is not None:
-                save_number += 1
-        events += int(event)
-        step = min(limit,trial_step*(1.25 if event else 1.5))
+    if solver_strategy == 'parallel-rope-length':
+        database = EquilibriumDatabase(system,payouts,initial_increment_m,min_increment_m,max_steps,workers)
+        interval = save_interval_seconds or time_step_s
+        if duration/interval > max_steps:
+            raise ValueError('Requested playback frames exceed maximum steps.')
+        times = [0.0]+[i*interval for i in range(1,math.ceil(duration/interval))]+([duration] if duration > 0 else [])
+        previous = 0.0
+        for time in times:
+            progress = schedule.at(time)
+            state,metric = database.at(progress)
+            record(time,state,dict(metric,incrementM=abs(progress-previous)*travel,event=False))
+            previous = progress
+        attempts,retries,events = database.attempts,database.repairs+database.refinements,database.events
+        accepted = len(database.samples)-1
+        strategy_settings = dict(parallelWorkers=database.workers,equilibriumStates=len(database.samples),
+                                 refinedStates=database.refinements,repairedStates=database.repairs)
+        database_result = database.serialize()
+    else:
+        marching = TimeMarchingSolver(system,payouts,schedule,initial_increment_m,min_increment_m,time_step_s,max_steps)
+        for time,state,metric in marching.frames(save_interval_seconds):
+            record(time,state,metric)
+        attempts,retries,events,accepted = marching.attempts,marching.retries,marching.events,marching.accepted
+        strategy_settings = dict(parallelWorkers=1)
+        database_result = None
     frames = {key:np.asarray(value) for key,value in frames.items()}
     return model.metadata,dict(frames=frames,
         ropeElements=[{k:model.edges[i][k] for k in ('componentId','componentName','elementId')} for i in out_indices],
         warnings=model.metadata['warnings'],convergence=convergence,
-        settings=dict(solverMethod='quasi-static',payoutM=float(np.mean(payouts)),
+        equilibriumDatabase=database_result,
+        settings=dict(solverMethod='quasi-static',equilibriumStrategy=solver_strategy,
+                      **strategy_settings,
+                      velocityProfile=velocity_profile,payoutM=float(np.mean(payouts)),
                       winchPayoutsM={str(cid):float(payouts[i]) for i,cid in enumerate(winch_ids)},
                       initialIncrementM=initial_increment_m,minimumIncrementM=min_increment_m,
                       timeStepSeconds=time_step_s,takeUpSpeedMPerMin=-float(np.mean(payouts))*60/duration if duration > 0 else 0,

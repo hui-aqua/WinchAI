@@ -27,9 +27,36 @@ export interface WinchResultHeader {
         waterDepthM?: number;
         membraneDynamics: boolean;
         solverMethod?: string;
+        equilibriumStrategy?: 'time-marching' | 'parallel-rope-length';
+        parallelWorkers?: number;
+        equilibriumStates?: number;
+        refinedStates?: number;
+        repairedStates?: number;
+        velocityProfile?: Array<{ timeS: number; velocityMPerS: number }> | null;
         hydrodynamicDrag: boolean;
         addedMass: boolean;
     };
+    equilibriumDatabase?: {
+        coordinate: 'coordinated-winch-payout';
+        winchComponentIds: number[];
+        pathTravelRangeM: number[];
+        baseRopeLengthsM: number[][];
+        rigidBodies: Array<{ nodes: number[]; centerM: number[]; localPositionsM: number[][]; scale: number }>;
+        particleNodes: number[];
+        states: Array<{
+            progress: number;
+            ropeLengthsM: number[][];
+            winchPayoutsM: number[];
+            generalizedCoordinates: number[];
+            ropeTensionsN: number[];
+            buoyancyN: number;
+            netVerticalLoadN: number;
+            momentNm: number[];
+            forceResidualN: number;
+            momentResidualNm: number;
+            constraintErrorM: number;
+        }>;
+    } | null;
     convergence?: Array<{
         forceResidualN: number;
         momentResidualNm: number;
@@ -39,6 +66,7 @@ export interface WinchResultHeader {
         constraintErrorM: number;
         incrementM?: number;
         event?: boolean;
+        interpolated?: boolean;
     }>;
     componentProperties?: ComponentProperties[];
     beamLoads: Array<{

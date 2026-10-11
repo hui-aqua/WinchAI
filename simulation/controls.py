@@ -13,6 +13,9 @@ def number(value, name, *, positive=False):
 def parse_controls(data):
     if not isinstance(data,dict):
         raise ValueError('Simulation settings must be an object.')
+    strategy = data.get('solverStrategy')
+    if strategy is not None and strategy not in ('time-marching','parallel-rope-length'):
+        raise ValueError('Solver strategy must be time-marching or parallel-rope-length.')
     duration = number(data.get('durationSeconds'),'Duration',positive=True)
     interval = number(data.get('saveIntervalSeconds'),'Save ΔT',positive=True)
     increment = number(data.get('initialIncrementM',0.05),'Initial increment',positive=True)
@@ -41,4 +44,5 @@ def parse_controls(data):
             raise ValueError('Specified payout must be between -10,000 and 10,000 m.')
         payouts[cid] = payout
     return dict(duration_seconds=duration,save_interval_seconds=interval,
-                initial_increment_m=increment,component_overrides=overrides,winch_payouts=payouts)
+                initial_increment_m=increment,component_overrides=overrides,winch_payouts=payouts,
+                solver_strategy=strategy,workers=data.get("parallelWorkers"),velocity_profile=data.get("velocityProfile"))

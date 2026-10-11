@@ -46,7 +46,7 @@ class ControlledSimulationTests(unittest.TestCase):
         for time,metric in zip([0,2,4,5],result['convergence']):
             np.testing.assert_allclose(metric['winchPayoutsM'],[.1*time/5,-.1*time/5])
         self.assertLess(result['frames']['nodePositionsM'][-1,2,2],result['frames']['nodePositionsM'][-1,3,2])
-        self.assertGreaterEqual(result['settings']['acceptedSteps'],3)
+        self.assertGreaterEqual(result['settings']['equilibriumStates'],3)
 
     def test_zero_payout_holds_equilibrium_for_requested_duration(self):
         _,result = simulate(self.path,winch_payouts={2:0,3:0},duration_seconds=5,save_interval_seconds=2)

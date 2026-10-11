@@ -67,7 +67,23 @@ describe('local winch simulation controls', () => {
         expect(body.controls.durationSeconds).toBe(10);
         expect(body.controls.saveIntervalSeconds).toBe(2);
         expect(body.controls.initialIncrementM).toBe(0.05);
+        expect(body.controls.solverStrategy).toBe('parallel-rope-length');
         expect(body.modelXml).toBe(modelXml);
+    });
+    it('submits the implicit solver choice and locks the selector while running', async () => {
+        let resolve!: (response: unknown) => void;
+        const fetchMock = vi.fn().mockImplementation(() => new Promise(done => { resolve = done; }));
+        await open(fetchMock);
+        const solver = document.getElementById('winch-solver') as HTMLSelectElement;
+        solver.value = 'time-marching';
+        submit();
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body).controls.solverStrategy).toBe('time-marching');
+        expect(solver.disabled).toBe(true);
+        expect(document.getElementById('winch-run-status')!.textContent).toContain('implicit time marching');
+        expect(JSON.parse(localStorage.getItem('winchai-last-run')!).controls.solverStrategy).toBe('time-marching');
+        resolve({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) });
+        await vi.waitFor(() => expect(solver.disabled).toBe(false));
     });
     it('loads properties on import and preserves edits when reopening the properties dialog', async () => {
         const simulation = setupWinchSimulation(playback);

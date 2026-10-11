@@ -86,7 +86,9 @@ simulation/
     model.py                Model normalization and rigid assemblies
     hydrostatics.py         Free-surface clipping and pipe immersion
     equilibrium.py          Sparse force/moment equilibrium
-    continuation.py         Time control and adaptive cable-length increments
+    continuation.py         Database sampling and timed playback
+    database.py             Parallel static equilibria, local repair and refinement
+    schedule.py             Velocity profiles mapped onto rope-length states
 tests/
   *.test.ts                 Behavior and regression tests
   fixtures/                 Model data used only by tests
@@ -119,11 +121,12 @@ npm run winch
 
 Open `http://127.0.0.1:8765/` and load an `.amodel`; properties load on import.
 Click **Component Properties** to review or edit EA, unstretched length, mass,
-and air/water weights. Edits persist for this model. Then click **Winch Simulation**.
+and air/water weights. Edits persist for this model. Then click **Winch Simulation** and choose **Implicit time marching (quasi-static)**
+or **Parallel quasi-static equilibrium** in the Solver selector.
 Set each winch's **Specified payout** (positive pays out, negative hauls in,
 zero holds), simulation duration, and save ΔT. Rate equals payout / duration.
-Rigid beam length and EA are read-only. The adaptive internal cable increment
-defaults to 50 mm; output is saved at the requested time interval, including
+Rigid beam length and EA are read-only. Independent static states use an initial
+rope-length spacing of 50 mm and parallel CPU workers; output is saved at the requested time interval, including
 the initial and final equilibria. Successful results load into playback.
 Each run uses a temporary local model/result;
 the uploaded file is not retained by the local service. The local API accepts
@@ -146,6 +149,57 @@ python -m simulation.winch_solver path/to/model.amodel \
 
 Other controls include independent convergence tolerances, nonlinear iteration
 limits, `--water-density-kg-m3`, and `--no-membrane`.
+
+Two solvers share the same nonlinear static mechanics. **Implicit time marching**
+solves each new time from the previous accepted equilibrium, reducing time steps
+near transitions or failed solves. **Parallel quasi-static equilibrium** solves
+independent rope-length states and maps the database onto playback time. Neither
+adds inertia or dynamic integration. Parallel remains the default.
+
+CLI: `--solver time-marching` or `--solver parallel-rope-length`.
+Settings JSON/API: `"solverStrategy": "time-marching"` or
+`"solverStrategy": "parallel-rope-length"`. Results and run diagnostics retain
+the selected strategy. Worker settings apply to the parallel solver.
+
+The default solver discretizes rope length and solves each initial state
+independently in up to four CPU processes. `--parallel-workers N` selects the
+worker count; `1` runs the same strategy in one process. Gravity, submerged
+buoyancy, elastic tension and structural constraints use the existing static
+mechanics. Failed samples retry from neighboring solutions. Force and moment
+residuals, pose continuity, cable activity, submergence and rapid response
+changes drive local midpoint refinement, bounded by the minimum increment
+and trial budget. Unresolved residuals or continuity terminate the run.
+
+AQWR v2 retains the playback layout and adds `equilibriumDatabase`: sorted
+progress, per-winch unstretched path lengths, generalized poses, rigid-body
+reconstruction data and equilibrium residuals. Sampling is independent of
+animation time. Saved frames interpolate rigid poses and flexible coordinates,
+re-evaluate forces, and locally re-solve if validation fails. The existing
+viewer smoothly interpolates these timed frames.
+
+Settings JSON accepted by `--settings-file` and `/api/simulate` also supports
+`parallelWorkers` and an optional `velocityProfile`, for example:
+
+```json
+"velocityProfile": [
+  { "timeS": 0, "velocityMPerS": 0 },
+  { "timeS": 5, "velocityMPerS": 0.02 },
+  { "timeS": 10, "velocityMPerS": 0 }
+]
+```
+
+Profile times must increase from zero to `durationSeconds`. Velocities are
+piecewise linear and integrated exactly to distance along the coordinated
+payout path: positive advances toward the requested payouts, negative
+reverses, and zero pauses. Here the total travel is 0.1 m. Each winch follows
+its specified payout proportion; independently timed winches would require
+a higher-dimensional database and are outside this strategy. Profiles may
+end anywhere in the sampled range but cannot leave it, including between
+velocity samples. Without a profile, the existing constant-rate schedule
+applies. No dynamic integration is introduced. Python callers can retain an
+`EquilibriumDatabase` and use `database.at(schedule.at(time))` to reuse the
+same equilibria with another `VelocitySchedule`.
+
 
 Run `npm run dev`, load the matching `.amodel` with **Open .amodel**, then use
 **Load result** to select an existing `.aqwr`. Playback provides a timeline,

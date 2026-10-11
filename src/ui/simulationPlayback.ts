@@ -150,7 +150,7 @@ export function setupSimulationPlayback(
             timeline.step = '1';
             timeline.disabled = false;
             playButton.disabled = false;
-            status.textContent = `${parsed.header.modelName} · ${parsed.frames.length} frames · ${parsed.header.ropeElements.length} cable elements · ${parsed.header.settings.solverMethod === 'quasi-static' ? 'quasi-static equilibria' : `${parsed.header.settings.takeUpSpeedMPerMin} m/min take-up`}`;
+            status.textContent = `${parsed.header.modelName} · ${parsed.frames.length} frames · ${parsed.header.ropeElements.length} cable elements · ${parsed.header.settings.solverMethod === 'quasi-static' ? (parsed.header.settings.equilibriumStrategy === 'time-marching' ? 'implicit time marching' : parsed.header.settings.equilibriumStrategy === 'parallel-rope-length' ? 'parallel quasi-static equilibria' : 'quasi-static equilibria') : `${parsed.header.settings.takeUpSpeedMPerMin} m/min take-up`}`;
             warnings.replaceChildren();
             for (const message of parsed.header.warnings) {
                 const item = document.createElement('li');
