@@ -38,11 +38,11 @@ simulation_results/
 __pycache__/
 **/__pycache__/
 *.py[cod]
+.pytest_cache/
 
 # Local Python environment and private input models
 .venv/
 models/*.amodel
-.pytest_cache/
-
-# Local source-model backups
+!models/Next_Otervika_NLS3.amodel
 models/*.bak
+!models/Next_Otervika_NLS3-*.bak

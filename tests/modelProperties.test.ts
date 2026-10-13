@@ -4,7 +4,7 @@ import { readModelProperties } from '@/simulation/modelProperties';
 
 describe('amodel simulation properties', () => {
     it('loads the project model directly without an API', () => {
-        const properties = readModelProperties(readFileSync('Next_Otervika_NLS3.amodel', 'utf8'));
+        const properties = readModelProperties(readFileSync('models/Next_Otervika_NLS3.amodel', 'utf8'));
         expect(properties.components.length).toBeGreaterThan(0);
         expect(properties.winches).toHaveLength(2);
         for (const component of properties.components) {
