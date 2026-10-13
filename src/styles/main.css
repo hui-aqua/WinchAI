@@ -580,7 +580,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
     right: 14px;
     bottom: 14px;
     z-index: 20;
-    max-height: 40%;
+    max-height: min(160px, 25%);
     overflow-y: auto;
     padding: 6px 8px;
     border: 1px solid var(--border-color);
@@ -608,13 +608,84 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
     flex-shrink: 0;
 }
 
+.winch-simulation-dialog {
+    width: min(440px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    margin: auto;
+    padding: 20px;
+    overflow-y: auto;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-hover);
+    border-radius: 10px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.winch-simulation-dialog::backdrop {
+    background: rgba(2, 6, 23, 0.72);
+}
+
+.winch-simulation-dialog form {
+    display: grid;
+    gap: 9px;
+}
+
+.winch-simulation-dialog h2 {
+    margin-bottom: 2px;
+    font-size: 18px;
+}
+
+.winch-model-name,
+.winch-simulation-notice,
+.winch-run-status {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.winch-simulation-dialog label {
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+.winch-simulation-dialog input,
+.winch-simulation-dialog select {
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 8px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-hover);
+    border-radius: 5px;
+}
+
+.winch-simulation-notice {
+    margin-top: 4px;
+    color: var(--accent-amber);
+}
+
+.winch-simulation-dialog small.winch-simulation-notice {
+    margin-top: -5px;
+    color: var(--text-secondary);
+}
+
+.winch-run-status {
+    min-height: 17px;
+}
+
+.winch-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
 .simulation-speed-label {
     color: var(--text-secondary);
     font-size: 11px;
 }
 
 .simulation-timeline-row {
-    margin-top: 8px;
+    margin-top: 4px;
 }
 
 #simulation-timeline {
@@ -632,14 +703,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 }
 
 @media (max-width: 760px) {
-    .simulation-panel { left: 8px; right: 8px; bottom: 8px; max-height: 48%; }
+    .simulation-panel { left: 8px; right: 8px; bottom: 8px; max-height: min(180px, 30%); }
     .simulation-toolbar { align-items: flex-start; flex-direction: column; }
-    .simulation-actions { width: 100%; justify-content: flex-end; gap: 6px; }
+    .simulation-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
     #simulation-time { min-width: 0; max-width: 50%; font-size: 9px; }
 }
 
 :root[data-theme="light"] .simulation-panel {
     background: rgba(255, 255, 255, 0.94);
+}
+
+:root[data-theme="light"] .winch-simulation-dialog {
+    background: var(--bg-secondary);
 }
 
 .theme-toggle { width: 36px; height: 36px; padding: 0; justify-content: center; flex-shrink: 0; }
@@ -658,3 +733,58 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-blue
 #simulation-controls[hidden] { display: none; }
 .simulation-actions { flex-wrap: wrap; }
 .simulation-panel .btn, .simulation-panel .select-mode { min-height: 28px; height: 28px; padding: 3px 8px; }
+
+/* Compact playback status and diagnostics. */
+.simulation-title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+#simulation-status {
+    overflow: hidden;
+    color: var(--text-secondary);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.simulation-warnings {
+    max-height: 40px;
+    overflow-y: auto;
+    padding: 6px 8px 0 22px;
+    border-top: 1px solid var(--border-color);
+    color: #fbbf24;
+    font-size: 10px;
+}
+
+.simulation-warnings li + li {
+    margin-top: 3px;
+}
+
+/* Parameter review and constant-rate winch controls. */
+.winch-simulation-dialog { width: min(1120px, calc(100vw - 32px)); max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow-y: auto; }
+.winch-simulation-dialog h3 { margin: 12px 0 0; font-size: 14px; color: var(--text-primary); }
+.winch-table-scroll { min-width: 0; border: 1px solid var(--border-color); border-radius: 6px; }
+.winch-properties-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12px; }
+.winch-properties-table th, .winch-properties-table td { padding: 5px 4px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; overflow-wrap: anywhere; }
+.winch-properties-table th { color: var(--text-secondary); white-space: normal; background: var(--bg-tertiary); }
+.winch-properties-table input { width: 100%; min-width: 0; max-width: 100%; min-height: 30px; padding: 4px 3px; font-family: var(--font-mono); font-size: 12px; }
+.winch-properties-table input:read-only { opacity: .65; background: var(--bg-tertiary); }
+.winch-properties-table td:first-child { min-width: 0; }
+.winch-timing-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.winch-timing-fields label { display: flex; flex-direction: column; gap: 6px; }
+.winch-step-settings summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; }
+.winch-step-settings[open] { display: block; }
+.winch-step-settings input { max-width: 160px; margin: 8px 0; }
+.winch-dialog-actions { position: sticky; bottom: -16px; padding: 12px 0; background: var(--bg-secondary); }
+
+.winch-weight-summary td { font-weight: 600; background: var(--bg-primary); border-top: 1px solid var(--border-hover); }
+
+@media (max-width: 800px) {
+    .winch-properties-table, .winch-properties-table input { font-size: 11px; }
+    .winch-properties-table th, .winch-properties-table td { padding: 4px 2px; }
+    .winch-simulation-dialog { padding: 12px; }
+}
+
+.winch-run-status { white-space: pre-wrap; overflow-wrap: anywhere; }

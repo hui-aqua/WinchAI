@@ -38,3 +38,11 @@ simulation_results/
 __pycache__/
 **/__pycache__/
 *.py[cod]
+
+# Local Python environment and private input models
+.venv/
+models/*.amodel
+.pytest_cache/
+
+# Local source-model backups
+models/*.bak

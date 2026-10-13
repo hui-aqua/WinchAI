@@ -70,4 +70,19 @@ describe('application UI wiring', () => {
         expect(sidebar.hidden).toBe(!initiallyHidden);
         expect(button.getAttribute('aria-expanded')).toBe(String(initiallyHidden));
     });
+    it('collapses the merged panel while preserving local solver and diagnostics controls', () => {
+        initializeApp();
+        const controls = document.getElementById('simulation-controls')!;
+        const toggle = document.getElementById('btn-toggle-simulation')!;
+        toggle.click();
+        expect(controls.hidden).toBe(true);
+        expect(toggle.getAttribute('aria-expanded')).toBe('false');
+        expect(document.getElementById('btn-run-winch-simulation')).not.toBeNull();
+        expect(document.getElementById('simulation-status')).not.toBeNull();
+        expect(document.getElementById('simulation-force-plot')).toBeNull();
+        toggle.click();
+        expect(controls.hidden).toBe(false);
+        expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    });
+
 });

@@ -2,11 +2,12 @@
   "name": "aquasim-web-viewer",
   "private": true,
   "version": "1.0.0",
-  "description": "Browser-based 3D structural model viewer for AquaSim .amodel engineering simulation files",
+  "description": "Local-first AquaSim winch simulation with interactive 3D model playback",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "npm run typecheck && vite build",
+    "winch": "npm run build && node scripts/run-winch.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

@@ -27,71 +27,60 @@ The theme button switches dark and light backgrounds and saves the preference
 when storage is available. The sidebar arrow hides or shows model information.
 The sidebar starts collapsed on narrow screens.
 
-## Winch simulation playback
+## Winch simulation
 
-The simulation panel plays local `.aqwr` binary results produced by the
-Python solver. Install its dependencies with
-`python -m pip install -r requirements.txt`, then run
-`python -m simulation.winch_solver` from the repository root. Load the
-matching `.amodel` and select **Load result**.
-Use play/pause, the timeline, and speed selector to inspect node motion.
-Winch rope elements are coloured by their computed axial tension; the plot
-shows the two winch endpoint tensions and the instantaneous net vertical
-load. Neither model nor result is sent to a server.
+Install dependencies with `python -m pip install -r requirements.txt` and
+`npm ci`, then start the integrated local GUI and solver API from the
+repository root with `npm run winch`. Open `http://127.0.0.1:8765/`, load an
+`.amodel`. Properties are read immediately when the model is imported.
+Click **Component Properties** to review or edit them, then click **Winch Simulation**
+to configure the winches and timing.
 
-### Run MoorDyn
+The **Component Properties** dialog displays the imported component table. Edit
+cable/net EA (N), total unstretched segment length (m), mass (kg), weight in
+air (N/m), and fully submerged weight in water (N/m). Total air and submerged
+weights (N) are calculated from length, with subtotals by component type and
+a grand total. Mass and weights display no decimals; lengths display two.
+Unedited source values retain their original precision. Mass and air weight are
+linked by W = mass × 9.80665. Negative water weight represents net buoyancy.
+Beam geometry and EA are read-only because beams are rigid in this solver;
+their mass and water weight remain editable. Edits are retained for the loaded model and subsequent simulations; they do
+not rewrite the source model. A component length edit scales its reference
+segments uniformly; mass is a component total; air and water weights are specified per metre.
 
-The default `xpbd` path remains an experimental preview. The recommended
-experimental cable-dynamics path uses MoorDyn-C v2. Supply a real site water
-depth below Z=0; the solver deliberately has no guessed default:
+In the winch table, **Specified payout** is the change in unstretched wire
+length over the simulation duration: positive pays out, negative hauls in,
+and zero holds length constant. Each winch has an independent value. If a
+winch has multiple wire paths, the specified change applies to each path.
+The constant rate is payout / duration and is shown in m/s. Set the duration
+in seconds and **Save ΔT** in seconds. Initial and final states are always
+saved; intermediate states are sampled from the equilibrium database at the requested save times.
 
-```sh
-SITE_DEPTH_M=REPLACE_WITH_SURVEYED_DEPTH
-python -m simulation.winch_solver \
-  --solver moordyn \
-  --water-depth-m "$SITE_DEPTH_M" \
-  --duration-seconds 1 \
-  --frame-interval-seconds 0.05 \
-  --output simulation_results/moordyn-test.aqwr
-```
+Choose **Implicit time marching (quasi-static)** to solve each successive time
+using the previous equilibrium, or **Parallel quasi-static equilibrium** to
+precompute independent rope-length states. Parallel is the default. Both use
+the same gravity, buoyancy, elastic tension and structural constraints, and
+both omit inertia. The selected solver is retained in run diagnostics and
+shown in playback.
 
-Replace the depth placeholder with surveyed/site data before running. Install
-the dependency with the same Python interpreter used for the command:
-`python -m pip install -r requirements.txt`.
+The initial cable increment defaults to 50 mm under equilibrium step settings.
+The parallel solver samples independent rope-length states using parallel CPU workers,
+repairs failed or discontinuous states from neighboring solutions, and refines
+the database near surface crossings, slack/taut changes and rapid responses. Save ΔT controls output sampling independently
+of these internal steps. Each saved state must satisfy the equilibrium checks.
+Zero-payout runs retain the same validated equilibrium for the full duration.
+The timeline represents the specified winch schedule; inertia is omitted.
+Playback speed changes presentation only. Use play/pause, the timeline, and
+speed selector to inspect positions and cable tension colouring.
+The model is sent only to the loopback Python process, used temporarily, and
+not sent to a remote server. The GitHub Pages viewer is static and cannot run
+local Python calculations.
 
-Other useful options are `--duration-minutes`, `--max-internal-steps`,
-`--step-seconds`, `--iterations`, `--water-density-kg-m3`, and
-`--no-membrane`. The take-up rate is fixed at 1 m/min for winch paths.
-`--solver xpbd` is still available for comparison but is not numerically
-converged on the target model.
-
-### Model assumptions and validation
-
-The target's 20 upper winch endpoints are fixed at Z=0 per the system boundary
-definition, fixing their connected Flytekrage/Klammer/Stuss beam assembly while
-the Bunnring remains moving. Winch2's lower endpoints connect to nearest
-Bunnring nodes as ideal frictionless point fairleads. MoorDyn models trusses as
-lumped-mass lines, beams as rigid bodies, and membranes as cable-edge/diagonal
-approximations. The `.amodel` has no roller radius, wrap surface, or friction
-properties, so the fairleads are not finite-radius roller contacts.
-
-The target has seven rigid beam groups, 37 truss components, and seven
-membrane components. Degree-two truss chains are condensed into multi-segment
-MoorDyn lines; their internal node positions and per-element tensions are
-mapped back to the original node IDs. Membranes are represented as tension-only
-edge and diagonal cable approximations, not membrane finite elements. Beam
-inertia is diagonalized, and generic drag coefficients are used where material
-coefficients are absent.
-
-One short target diagnostic with membranes disabled and a test-only 100 m depth
-returned finite coordinates after one 0.01 s step, but still reported MoorDyn
-catenary-initialization fallbacks and a peak cable tension near 4.13 MN. The
-100 m value was not supplied as site data. The full membrane-enabled target,
-long-duration equilibrium, timestep/mesh convergence, measured loads, and
-finite-radius roller mechanics are not validated. Treat both solver modes as
-experimental visualization only; do not use their outputs for engineering
-design. For the detailed solver scope and known limitations, see the README's
-Physics and current scope section.
+The current solver remains under development and is not a certified
+engineering package. Routing follows explicit model connectivity and omits roller radius,
+wrap contact, and friction; membranes are approximated as cable-edge/diagonal
+networks rather than shell finite elements. Validate materials, loads,
+winch routing, and model assumptions before engineering use.
 
 ## Components and statistics
 
@@ -109,3 +98,24 @@ are skipped and reported as warnings.
 Unpack the standalone release ZIP and serve the directory over HTTP with a
 local server. For example, run `python -m http.server` in that directory
 and open `http://localhost:8000/`.
+
+## Run diagnostics
+
+Every Run simulation attempt saves its settings and diagnostics in browser
+local storage. Use **Download run diagnostics** to export the last attempt,
+including network errors, HTTP status, model filename, component properties,
+controls and any server run ID. No source XML is stored in browser diagnostics.
+The next attempt replaces the browser's previous report.
+
+The local Python server saves each received simulation request under
+`simulation_results/runs/<run-id>/`: `input.amodel`, `settings.json`,
+`request.body`, `diagnostics.json`, `stdout.log`, `stderr.log`, and
+`traceback.log` for unexpected server errors. Validation failures may have only
+the request and diagnostic report. These files stay locally and are ignored
+by Git. They remain available after failed runs.
+
+“Failed to fetch” means no readable API response reached the browser. Start
+`npm run winch` and use `http://127.0.0.1:8765/`. With `npm run dev`, start
+`python -m simulation.local_server --api-only` separately. A static viewer
+has no Python solver. Check the server terminal if the connection drops during
+a run; the retained reports show the last recorded stage and Python errors.
